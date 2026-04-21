@@ -62,3 +62,26 @@ export const getRecord = async (id: number): Promise<DailyRecordResponse> => {
   const res = await client.get(`/api/v1/records/${id}`)
   return res.data
 }
+
+export interface DailyRecordUpdate {
+  turbid_peritoneal?: boolean
+  weight?: number
+  blood_pressure?: string
+  urine_count?: number
+  total_ultrafiltration?: number
+  fasting_blood_glucose?: number
+  memo?: string
+  exchange_records?: ExchangeRecord[]
+}
+
+export const updateRecord = async (
+  id: number,
+  data: DailyRecordUpdate
+): Promise<DailyRecordResponse> => {
+  const res = await client.patch(`/api/v1/records/${id}`, data)
+  return res.data
+}
+
+export const deleteRecord = async (id: number): Promise<void> => {
+  await client.delete(`/api/v1/records/${id}`)
+}

@@ -6,6 +6,7 @@ import DashboardPage from "../pages/doctor/DashboardPage";
 import RecordDetailPage from "../pages/doctor/RecordDetailPage";
 import CommonQPage from "../pages/doctor/CommonQPage";
 import AIReviewPage from "../pages/doctor/AIReviewPage";
+import RecordListPage from "../pages/patient/RecordListPage";
 import RecordSubmitPage from "../pages/patient/RecordSubmitPage";
 import SurveyPage from "../pages/patient/SurveyPage";
 import SurveyDonePage from "../pages/patient/SurveyDonePage";
@@ -54,7 +55,7 @@ const router = createBrowserRouter([
   // ── 환자 ──────────────────────────────────────────────────
   {
     path: "/patient",
-    element: <Navigate to="/patient/record" replace />,
+    element: <PrivateRoute><RecordListPage /></PrivateRoute>,
   },
   {
     path: "/patient/record",

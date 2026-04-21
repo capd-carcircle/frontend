@@ -21,7 +21,6 @@ const S: { [key: string]: React.CSSProperties } = {
    ========================================================= */
 const navItems = [
   { icon: "📊", label: "대시보드",     path: "/doctor" },
-  { icon: "📋", label: "기록 검토",    path: "/doctor/record" },
   { icon: "❓", label: "공통 질문",    path: "/doctor/common-questions" },
   { icon: "🤖", label: "AI 맞춤 질문", path: "/doctor/ai-questions" },
 ];

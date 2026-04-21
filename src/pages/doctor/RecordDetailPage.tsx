@@ -126,6 +126,7 @@ export default function RecordDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
   const [approving, setApproving] = useState(false);
+  const [reverting, setReverting] = useState(false);
 
   useEffect(() => {
     if (!recordId) return;
@@ -164,6 +165,29 @@ export default function RecordDetailPage() {
       alert("승인 중 오류가 발생했습니다.");
     } finally {
       setApproving(false);
+    }
+  };
+
+  const handleRevert = async () => {
+    if (!recordId || reverting) return;
+    if (!window.confirm("승인을 취소하고 검토 중 상태로 되돌릴까요?")) return;
+    const token = localStorage.getItem("access_token");
+    setReverting(true);
+    try {
+      const res = await fetch(`${API}/api/v1/records/${recordId}/revert`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.detail ?? "되돌리기 실패");
+        return;
+      }
+      setDetail((prev) => prev ? { ...prev, status: "submitted" } : prev);
+    } catch {
+      alert("되돌리기 중 오류가 발생했습니다.");
+    } finally {
+      setReverting(false);
     }
   };
 
@@ -211,7 +235,26 @@ export default function RecordDetailPage() {
               {approving ? "처리 중..." : "✅ 기록 승인"}
             </button>
           ) : (
-            <span style={{ color: COLOR.success, fontWeight: 700, fontSize: 13 }}>✅ 승인 완료</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ color: COLOR.success, fontWeight: 700, fontSize: 13 }}>✅ 승인 완료</span>
+              <button
+                className="revert-btn"
+                style={{
+                  padding: "6px 14px",
+                  backgroundColor: "#fff",
+                  color: COLOR.textMuted,
+                  border: `1px solid ${COLOR.textMuted}`,
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+                onClick={handleRevert}
+                disabled={reverting}
+              >
+                {reverting ? "처리 중..." : "↩ 검토 중으로 되돌리기"}
+              </button>
+            </div>
           )}
         </div>
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { DailyRecordCreate, ExchangeRecord } from '../../api/records'
+import type { DailyRecordCreate, DailyRecordResponse, ExchangeRecord } from '../../api/records'
 import styles from './RecordForm.module.css'
 
 // ── 빈 교환 기록 초기값 ──────────────────────────────────────
@@ -20,22 +20,49 @@ const todayStr = () => new Date().toISOString().split('T')[0]
 interface Props {
   onSubmit: (data: DailyRecordCreate) => void
   isLoading: boolean
+  initialData?: DailyRecordResponse   // 이미 제출된 기록
+  isEditing?: boolean                  // true면 initialData가 있어도 편집 가능
 }
 
-export default function RecordForm({ onSubmit, isLoading }: Props) {
-  // 교환 기록 (5회차)
-  const [exchanges, setExchanges] = useState<ExchangeRecord[]>(
-    SESSIONS.map(emptyExchange)
-  )
+export default function RecordForm({ onSubmit, isLoading, initialData, isEditing = false }: Props) {
+  // initialData가 있고 편집 모드가 아니면 읽기 전용
+  const isReadOnly = !!initialData && !isEditing
 
-  // 기타 기록
-  const [turbidPeritoneal, setTurbidPeritoneal] = useState(false)
-  const [weight, setWeight] = useState('')
-  const [bpSystolic, setBpSystolic] = useState('')
-  const [bpDiastolic, setBpDiastolic] = useState('')
-  const [urineCount, setUrineCount] = useState('')
-  const [fastingGlucose, setFastingGlucose] = useState('')
-  const [memo, setMemo] = useState('')
+  // ── 교환 기록 초기화 ─────────────────────────────────────────
+  const initExchanges = (): ExchangeRecord[] => {
+    const base = SESSIONS.map(emptyExchange)
+    if (!initialData) return base
+    initialData.exchange_records.forEach((ex) => {
+      const idx = ex.session_number - 1
+      if (idx >= 0 && idx < 5) {
+        base[idx] = {
+          session_number:        ex.session_number,
+          exchange_time:         ex.exchange_time ?? '',
+          drainage_volume:       ex.drainage_volume,
+          infusion_concentration: ex.infusion_concentration,
+          infusion_weight:       ex.infusion_weight,
+          ultrafiltration:       ex.ultrafiltration,
+        }
+      }
+    })
+    return base
+  }
+
+  // ── 기타 기록 초기화 ─────────────────────────────────────────
+  const initBp = () => {
+    if (!initialData?.blood_pressure) return { sys: '', dia: '' }
+    const parts = initialData.blood_pressure.split('/')
+    return { sys: parts[0] ?? '', dia: parts[1] ?? '' }
+  }
+
+  const [exchanges, setExchanges] = useState<ExchangeRecord[]>(initExchanges)
+  const [turbidPeritoneal, setTurbidPeritoneal] = useState(initialData?.turbid_peritoneal ?? false)
+  const [weight, setWeight]               = useState(initialData?.weight?.toString() ?? '')
+  const [bpSystolic, setBpSystolic]       = useState(initBp().sys)
+  const [bpDiastolic, setBpDiastolic]     = useState(initBp().dia)
+  const [urineCount, setUrineCount]       = useState(initialData?.urine_count?.toString() ?? '')
+  const [fastingGlucose, setFastingGlucose] = useState(initialData?.fasting_blood_glucose?.toString() ?? '')
+  const [memo, setMemo]                   = useState(initialData?.memo ?? '')
 
   // ── 교환 기록 셀 변경 핸들러 ────────────────────────────────
   const handleExchange = (
@@ -43,6 +70,7 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
     field: keyof ExchangeRecord,
     value: string
   ) => {
+    if (isReadOnly) return
     setExchanges((prev) => {
       const next = [...prev]
       const rec = { ...next[sessionIdx] }
@@ -66,6 +94,7 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
   // ── 제출 ─────────────────────────────────────────────────────
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (isReadOnly) return
 
     const validExchanges = exchanges.filter(
       (ex) =>
@@ -119,6 +148,7 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
                       className={styles.cellInput}
                       value={ex.exchange_time ?? ''}
                       onChange={(e) => handleExchange(i, 'exchange_time', e.target.value)}
+                      readOnly={isReadOnly}
                     />
                   </td>
                 ))}
@@ -135,6 +165,7 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
                       min="0"
                       value={ex.drainage_volume ?? ''}
                       onChange={(e) => handleExchange(i, 'drainage_volume', e.target.value)}
+                      readOnly={isReadOnly}
                     />
                   </td>
                 ))}
@@ -155,6 +186,7 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
                       onChange={(e) =>
                         handleExchange(i, 'infusion_concentration', e.target.value)
                       }
+                      readOnly={isReadOnly}
                     />
                   </td>
                 ))}
@@ -171,6 +203,7 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
                       min="0"
                       value={ex.infusion_weight ?? ''}
                       onChange={(e) => handleExchange(i, 'infusion_weight', e.target.value)}
+                      readOnly={isReadOnly}
                     />
                   </td>
                 ))}
@@ -186,6 +219,7 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
                       placeholder="—"
                       value={ex.ultrafiltration ?? ''}
                       onChange={(e) => handleExchange(i, 'ultrafiltration', e.target.value)}
+                      readOnly={isReadOnly}
                     />
                   </td>
                 ))}
@@ -207,14 +241,16 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
               <button
                 type="button"
                 className={`${styles.toggleBtn} ${!turbidPeritoneal ? styles.toggleActive : ''}`}
-                onClick={() => setTurbidPeritoneal(false)}
+                onClick={() => { if (!isReadOnly) setTurbidPeritoneal(false) }}
+                style={isReadOnly ? { cursor: 'default' } : {}}
               >
                 정상
               </button>
               <button
                 type="button"
                 className={`${styles.toggleBtn} ${turbidPeritoneal ? styles.toggleActiveWarn : ''}`}
-                onClick={() => setTurbidPeritoneal(true)}
+                onClick={() => { if (!isReadOnly) setTurbidPeritoneal(true) }}
+                style={isReadOnly ? { cursor: 'default' } : {}}
               >
                 혼탁
               </button>
@@ -231,7 +267,8 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
               step="0.1"
               min="0"
               value={weight}
-              onChange={(e) => setWeight(e.target.value)}
+              onChange={(e) => { if (!isReadOnly) setWeight(e.target.value) }}
+              readOnly={isReadOnly}
             />
           </div>
 
@@ -245,7 +282,8 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
                 placeholder="수축기"
                 min="0"
                 value={bpSystolic}
-                onChange={(e) => setBpSystolic(e.target.value)}
+                onChange={(e) => { if (!isReadOnly) setBpSystolic(e.target.value) }}
+                readOnly={isReadOnly}
               />
               <span className={styles.bpSlash}>/</span>
               <input
@@ -254,7 +292,8 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
                 placeholder="이완기"
                 min="0"
                 value={bpDiastolic}
-                onChange={(e) => setBpDiastolic(e.target.value)}
+                onChange={(e) => { if (!isReadOnly) setBpDiastolic(e.target.value) }}
+                readOnly={isReadOnly}
               />
             </div>
           </div>
@@ -268,7 +307,8 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
               placeholder="예) 3"
               min="0"
               value={urineCount}
-              onChange={(e) => setUrineCount(e.target.value)}
+              onChange={(e) => { if (!isReadOnly) setUrineCount(e.target.value) }}
+              readOnly={isReadOnly}
             />
           </div>
 
@@ -293,7 +333,8 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
               placeholder="예) 105"
               min="0"
               value={fastingGlucose}
-              onChange={(e) => setFastingGlucose(e.target.value)}
+              onChange={(e) => { if (!isReadOnly) setFastingGlucose(e.target.value) }}
+              readOnly={isReadOnly}
             />
           </div>
 
@@ -307,18 +348,25 @@ export default function RecordForm({ onSubmit, isLoading }: Props) {
             placeholder="특이사항이 있으면 입력해 주세요."
             rows={3}
             value={memo}
-            onChange={(e) => setMemo(e.target.value)}
+            onChange={(e) => { if (!isReadOnly) setMemo(e.target.value) }}
+            readOnly={isReadOnly}
           />
         </div>
       </section>
 
-      {/* ── 제출 버튼 ─────────────────────────────────────────── */}
-      <div className={styles.submitArea}>
-        <button type="submit" className={styles.submitBtn} disabled={isLoading}>
-          {isLoading ? '제출 중...' : '기록 제출하기 →'}
-        </button>
-        <p className={styles.submitNote}>* 제출 후 후속 설문이 이어집니다.</p>
-      </div>
+      {/* ── 버튼 영역 ────────────────────────────────────────── */}
+      {!isReadOnly && (
+        <div className={styles.submitArea}>
+          <button type="submit" className={styles.submitBtn} disabled={isLoading}>
+            {isLoading
+              ? (isEditing ? '저장 중...' : '제출 중...')
+              : (isEditing ? '수정 저장하기 →' : '기록 제출하기 →')}
+          </button>
+          {!isEditing && (
+            <p className={styles.submitNote}>* 제출 후 후속 설문이 이어집니다.</p>
+          )}
+        </div>
+      )}
     </form>
   )
 }

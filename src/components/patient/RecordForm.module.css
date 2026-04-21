@@ -8,116 +8,164 @@
 /* ── 섹션 카드 ───────────────────────────────────────────────── */
 .section {
   background-color: #fff;
-  border-radius: 8px;
-  padding: 20px 16px;
+  border-radius: 14px;
+  padding: 18px 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .sectionTitle {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: #1f1f1f;
-  margin: 0 0 12px 0;
+  color: #1a1a2e;
+  margin: 0 0 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionTitle::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: #1b508a;
+  border-radius: 2px;
 }
 
 /* ── 교환 기록 테이블 ─────────────────────────────────────────── */
 .tableWrapper {
-  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;   /* 스크롤 제거 */
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;  /* 컬럼 너비 강제 고정 */
 }
 
 .rowHeader {
   background-color: #1b508a;
   color: #fff;
   font-weight: 700;
-  font-size: 10px;
-  padding: 7px 8px;
+  font-size: 11px;
+  padding: 8px 6px;
   text-align: left;
-  width: 16%;
+  width: 84px;   /* 항목 레이블 고정 너비 */
 }
 
 .colHeader {
-  background-color: #dbdbdb;
-  color: #1f1f1f;
+  background-color: #e8f0f9;
+  color: #1b508a;
   font-weight: 700;
-  font-size: 10px;
-  padding: 7px 8px;
-  text-align: left;
-  width: 16.8%;
+  font-size: 11px;
+  padding: 8px 4px;
+  text-align: center;
+  /* 나머지 5컬럼 균등 분배 */
 }
 
 .rowLabel {
-  background-color: #f2f7ff;
-  font-size: 10px;
-  color: #1f1f1f;
-  padding: 7px 8px;
+  background-color: #f9fafb;
+  font-size: 11px;
+  color: #374151;
+  padding: 6px 6px;
+  font-weight: 500;
+  border-top: 1px solid #f0f0f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cell {
-  padding: 4px 6px;
+  padding: 3px 3px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .cellInput {
   width: 100%;
-  height: 30px;
-  border: 1px solid #dbdbdb;
-  border-radius: 3px;
-  padding: 0 6px;
+  min-width: 0;      /* time input 브라우저 기본 최소 너비 무력화 */
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0 3px;
   font-size: 11px;
   outline: none;
   box-sizing: border-box;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color: #1a1a2e;
+  background: #fff;
+  text-align: center;
+}
+
+/* number input 스피너 제거 → 더 좁게 */
+.cellInput[type='number']::-webkit-inner-spin-button,
+.cellInput[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cellInput[type='number'] {
+  -moz-appearance: textfield;
 }
 
 .cellInput:focus {
   border-color: #1b508a;
+  box-shadow: 0 0 0 2px rgba(27,80,138,0.12);
+}
+
+.cellInput:read-only {
+  background-color: #f9fafb;
+  color: #6b7280;
+  cursor: default;
 }
 
 /* ── 기타 기록 그리드 ─────────────────────────────────────────── */
 .otherGrid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px 20px;
+  gap: 14px 16px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .memoField {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .label {
-  font-size: 11px;
-  color: #8c8c8c;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 /* ── 인풋 공통 ───────────────────────────────────────────────── */
 .input {
-  height: 32px;
-  border: 1px solid #dbdbdb;
-  border-radius: 4px;
-  padding: 0 10px;
-  font-size: 12px;
+  height: 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 13px;
   outline: none;
   width: 100%;
   box-sizing: border-box;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color: #1a1a2e;
+  background: #fff;
 }
 
 .input:focus {
   border-color: #1b508a;
+  box-shadow: 0 0 0 3px rgba(27,80,138,0.10);
 }
 
 .readOnly {
-  background-color: #f5f5f5;
-  color: #8c8c8c;
+  background-color: #f3f4f6;
+  color: #9ca3af;
   cursor: default;
 }
 
@@ -125,52 +173,58 @@
 .bpRow {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .bpInput {
   flex: 1;
-  height: 32px;
-  border: 1px solid #dbdbdb;
-  border-radius: 4px;
-  padding: 0 8px;
-  font-size: 12px;
+  height: 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
   outline: none;
   box-sizing: border-box;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color: #1a1a2e;
+  background: #fff;
 }
 
 .bpInput:focus {
   border-color: #1b508a;
+  box-shadow: 0 0 0 3px rgba(27,80,138,0.10);
 }
 
 .bpSlash {
-  font-size: 14px;
-  color: #8c8c8c;
+  font-size: 16px;
+  color: #9ca3af;
   flex-shrink: 0;
+  font-weight: 600;
 }
 
 /* ── 복막액 혼탁 토글 ─────────────────────────────────────────── */
 .toggleRow {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .toggleBtn {
   flex: 1;
-  height: 32px;
-  border: 1px solid #dbdbdb;
-  border-radius: 4px;
+  height: 36px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
   background-color: #fff;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  color: #8c8c8c;
+  color: #6b7280;
 }
 
 .toggleBtn:hover {
   border-color: #1b508a;
   color: #1b508a;
+  background-color: #eff6ff;
 }
 
 .toggleActive {
@@ -180,30 +234,52 @@
   font-weight: 700;
 }
 
+.toggleActive:hover {
+  background-color: #154070;
+  border-color: #154070;
+  color: #fff;
+}
+
 .toggleActiveWarn {
-  background-color: #c0392b;
-  border-color: #c0392b;
+  background-color: #dc2626;
+  border-color: #dc2626;
   color: #fff;
   font-weight: 700;
+}
+
+.toggleActiveWarn:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
 }
 
 /* ── 텍스트에어리어 ───────────────────────────────────────────── */
 .textarea {
   width: 100%;
-  height: 72px;
-  border: 1px solid #dbdbdb;
-  border-radius: 4px;
-  padding: 8px 10px;
-  font-size: 12px;
+  height: 80px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
   outline: none;
   resize: vertical;
   box-sizing: border-box;
   font-family: inherit;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color: #1a1a2e;
+  background: #fff;
+  line-height: 1.5;
 }
 
 .textarea:focus {
   border-color: #1b508a;
+  box-shadow: 0 0 0 3px rgba(27,80,138,0.10);
+}
+
+.textarea:read-only {
+  background-color: #f9fafb;
+  color: #6b7280;
+  cursor: default;
 }
 
 /* ── 제출 영역 ───────────────────────────────────────────────── */
@@ -211,7 +287,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-top: 8px;
   padding-bottom: 8px;
 }
@@ -220,27 +296,35 @@
   background-color: #1b508a;
   color: #fff;
   border: none;
-  border-radius: 6px;
-  width: 220px;
-  height: 44px;
-  font-size: 13px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 320px;
+  height: 48px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: -0.2px;
+  font-family: inherit;
 }
 
 .submitBtn:hover:not(:disabled) {
   opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .submitBtn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .submitNote {
-  font-size: 10px;
-  color: #8c8c8c;
+  font-size: 12px;
+  color: #9ca3af;
   margin: 0;
 }
 
@@ -248,5 +332,16 @@
 @media (max-width: 600px) {
   .otherGrid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .section {
+    border-radius: 12px;
+    padding: 16px 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .otherGrid {
+    grid-template-columns: 1fr;
   }
 }
