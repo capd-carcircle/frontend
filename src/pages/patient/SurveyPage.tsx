@@ -288,6 +288,12 @@ export default function SurveyPage() {
     return choiceChanged || textChanged
   })
 
+  // 공통 질문 전체 답변 완료 여부 (AI 문진 시작 버튼 활성화)
+  const allCommonAnswered = commonQs.length > 0 && commonQs.every(q => {
+    const a = answers[q.question_id]
+    return a?.choice !== null
+  })
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
       {/* 헤더 */}
@@ -483,7 +489,7 @@ export default function SurveyPage() {
         )}
       </main>
 
-      {/* 하단 고정 저장 버튼 */}
+      {/* 하단 고정 버튼 */}
       {!loading && recordId && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
@@ -492,41 +498,77 @@ export default function SurveyPage() {
           padding: '12px 20px',
           boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
           zIndex: 100,
-          display: 'flex', gap: 10, maxWidth: 680, margin: '0 auto',
+          maxWidth: 680, margin: '0 auto',
         }}>
-          <button
-            style={{
-              flex: 1, height: 48,
-              backgroundColor: '#f3f4f6',
-              color: '#6b7280',
-              border: 'none', borderRadius: 10,
-              fontSize: 14, fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.15s',
-            }}
-            onClick={() => navigate('/patient')}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#e5e7eb')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
-          >
-            나중에 하기
-          </button>
-          <button
-            style={{
-              flex: 2, height: 48,
-              backgroundColor: saving ? '#9ca3af' : (hasNewAnswers ? '#1b508a' : '#6b7280'),
-              color: '#fff',
-              border: 'none', borderRadius: 10,
-              fontSize: 14, fontWeight: 700,
-              cursor: saving ? 'not-allowed' : 'pointer',
-              transition: 'opacity 0.15s',
-            }}
-            onClick={handleSave}
-            disabled={saving}
-            onMouseEnter={e => { if (!saving) e.currentTarget.style.opacity = '0.88' }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
-          >
-            {saving ? '저장 중...' : '답변 저장하기'}
-          </button>
+          {/* 공통질문 미완료: 저장 버튼 */}
+          {!allCommonAnswered && (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                style={{
+                  flex: 1, height: 48,
+                  backgroundColor: '#f3f4f6', color: '#6b7280',
+                  border: 'none', borderRadius: 10,
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
+                onClick={() => navigate('/patient')}
+              >
+                나중에 하기
+              </button>
+              <button
+                style={{
+                  flex: 2, height: 48,
+                  backgroundColor: saving ? '#9ca3af' : (hasNewAnswers ? '#1b508a' : '#9ca3af'),
+                  color: '#fff',
+                  border: 'none', borderRadius: 10,
+                  fontSize: 14, fontWeight: 700,
+                  cursor: saving || !hasNewAnswers ? 'not-allowed' : 'pointer',
+                }}
+                onClick={handleSave}
+                disabled={saving || !hasNewAnswers}
+              >
+                {saving ? '저장 중...' : '답변 저장하기'}
+              </button>
+            </div>
+          )}
+
+          {/* 공통질문 완료: AI 문진 시작 버튼 */}
+          {allCommonAnswered && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {hasNewAnswers && (
+                <button
+                  style={{
+                    width: '100%', height: 40,
+                    backgroundColor: saving ? '#9ca3af' : '#f3f4f6',
+                    color: '#6b7280',
+                    border: 'none', borderRadius: 10,
+                    fontSize: 13, fontWeight: 600,
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? '저장 중...' : '변경 사항 저장'}
+                </button>
+              )}
+              <button
+                style={{
+                  width: '100%', height: 52,
+                  backgroundColor: '#1b508a', color: '#fff',
+                  border: 'none', borderRadius: 10,
+                  fontSize: 15, fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  boxShadow: '0 4px 12px rgba(27,80,138,0.3)',
+                }}
+                onClick={async () => {
+                  if (hasNewAnswers) await handleSave()
+                  navigate('/patient/conversation', { state: { recordId } })
+                }}
+              >
+                🤖 AI 문진 시작하기
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

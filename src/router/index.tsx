@@ -14,6 +14,7 @@ import RecordListPage from "../pages/patient/RecordListPage";
 import RecordSubmitPage from "../pages/patient/RecordSubmitPage";
 import SurveyPage from "../pages/patient/SurveyPage";
 import SurveyDonePage from "../pages/patient/SurveyDonePage";
+import ConversationPage from "../pages/patient/ConversationPage";
 
 // 준비 중 placeholder
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -89,6 +90,10 @@ const router = createBrowserRouter([
   {
     path: "/patient/survey/done",
     element: <PrivateRoute><SurveyDonePage /></PrivateRoute>,
+  },
+  {
+    path: "/patient/conversation",
+    element: <PrivateRoute><ConversationPage /></PrivateRoute>,
   },
 ]);
 

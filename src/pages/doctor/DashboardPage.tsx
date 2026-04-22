@@ -18,10 +18,13 @@ interface PatientInfo {
 }
 
 interface TodayRecord {
-  record_id:    number;
-  patient_id:   number;
-  patient_name: string;
-  status:       string;
+  record_id:       number;
+  patient_id:      number;
+  patient_name:    string;
+  status:          string;
+  risk_level:      "urgent" | "caution" | "normal" | null;
+  ai_summary:      string | null;
+  conversation_id: number | null;
 }
 
 interface DashboardStats {
@@ -43,6 +46,84 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   );
 }
 
+/* ── 위험도 뱃지 ──────────────────────────────────────── */
+const RISK_CONFIG = {
+  urgent:  { label: "🚨 긴급", bg: "#fef2f2", color: "#dc2626", border: "#fca5a5" },
+  caution: { label: "⚠️ 주의", bg: "#fffbeb", color: "#d97706", border: "#fcd34d" },
+  normal:  { label: "✓ 정상",  bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+} as const;
+
+/* ── 대화 보기 모달 ───────────────────────────────────── */
+interface ConvModalProps {
+  conversationId: number;
+  onClose: () => void;
+}
+
+function ConversationModal({ conversationId, onClose }: ConvModalProps) {
+  const [messages, setMessages] = React.useState<Array<{ role: string; content: string; is_urgent_flag: boolean }>>([]);
+  const [loading,  setLoading]  = React.useState(true);
+
+  React.useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    fetch(`${API}/api/v1/conversations/${conversationId}/messages`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => setMessages(d.messages ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [conversationId]);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 1000, padding: 16,
+    }} onClick={onClose}>
+      <div style={{
+        backgroundColor: "#fff", borderRadius: 16,
+        width: "100%", maxWidth: 520, maxHeight: "80vh",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{
+          padding: "16px 20px", borderBottom: "1px solid #e5e7eb",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <p style={{ fontWeight: 700, fontSize: 14, margin: 0 }}>🤖 AI 문진 대화 내용</p>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af" }}>✕</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {loading ? (
+            <p style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>불러오는 중...</p>
+          ) : messages.length === 0 ? (
+            <p style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>대화 내용이 없습니다.</p>
+          ) : messages.map((m, i) => (
+            <div key={i} style={{
+              display: "flex", justifyContent: m.role === "ai" ? "flex-start" : "flex-end",
+            }}>
+              <div style={{
+                maxWidth: "75%", padding: "10px 14px",
+                borderRadius: m.role === "ai" ? "4px 14px 14px 14px" : "14px 4px 14px 14px",
+                backgroundColor: m.is_urgent_flag ? "#fef2f2" : m.role === "ai" ? "#f0f4ff" : "#1b508a",
+                color: m.is_urgent_flag ? "#dc2626" : m.role === "ai" ? "#1a1a2e" : "#fff",
+                fontSize: 13, lineHeight: 1.6,
+                border: m.is_urgent_flag ? "1px solid #fca5a5" : "none",
+              }}>
+                <span style={{ fontSize: 10, opacity: 0.6, display: "block", marginBottom: 2 }}>
+                  {m.role === "ai" ? "AI" : "환자"}
+                </span>
+                {m.content}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── 환자 카드 ────────────────────────────────────────── */
 interface PatientCardProps {
   patient:       PatientInfo;
@@ -52,74 +133,126 @@ interface PatientCardProps {
 }
 
 function PatientCard({ patient, todayRecord, onClickRecord, onClickPast }: PatientCardProps) {
+  const [showConvModal, setShowConvModal] = React.useState(false);
+
   const hasPending  = todayRecord !== null && todayRecord.status === "submitted";
   const hasApproved = todayRecord !== null && todayRecord.status === "reviewed";
   const hasRecord   = todayRecord !== null;
+  const riskLevel   = todayRecord?.risk_level ?? null;
+  const riskConfig  = riskLevel ? RISK_CONFIG[riskLevel] : null;
 
-  const borderColor = hasPending ? COLOR.danger : hasApproved ? COLOR.success : COLOR.grayLight;
-  const bgColor     = hasPending ? "#fff8f8"    : hasApproved ? "#f4fff7"     : COLOR.white;
+  // 위험도 기반 테두리 색상 (위험도 > 상태)
+  const borderColor = riskLevel === "urgent" ? "#fca5a5"
+                    : riskLevel === "caution" ? "#fcd34d"
+                    : hasPending  ? COLOR.danger
+                    : hasApproved ? COLOR.success
+                    : COLOR.grayLight;
+  const bgColor     = riskLevel === "urgent" ? "#fff5f5"
+                    : riskLevel === "caution" ? "#fffdf0"
+                    : hasPending  ? "#fff8f8"
+                    : hasApproved ? "#f4fff7"
+                    : COLOR.white;
 
   return (
-    <div
-      style={{
-        ...card.base,
-        border: `1.5px solid ${borderColor}`,
-        backgroundColor: bgColor,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "14px 18px",
-        cursor: hasRecord ? "pointer" : "default",
-        transition: "box-shadow 0.15s",
-      }}
-      onClick={() => {
-        if (hasPending || hasApproved) onClickRecord(todayRecord!.record_id, patient.name);
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            backgroundColor: hasPending ? "#ffeaea" : hasApproved ? "#e6f7ec" : COLOR.grayBg,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 16,
-            flexShrink: 0,
-          }}
-        >
-          👤
-        </div>
-        <div>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: COLOR.text }}>{patient.name}</p>
-          <p style={{ margin: 0, fontSize: 10, color: COLOR.textMuted }}>{patient.phone_number}</p>
-        </div>
-      </div>
+    <>
+      {showConvModal && todayRecord?.conversation_id && (
+        <ConversationModal
+          conversationId={todayRecord.conversation_id}
+          onClose={() => setShowConvModal(false)}
+        />
+      )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {hasPending && (
-          <span style={{ backgroundColor: "#ffe5e5", color: COLOR.danger, fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>
-            ● 미확인 기록
-          </span>
+      <div
+        style={{
+          ...card.base,
+          border: `1.5px solid ${borderColor}`,
+          backgroundColor: bgColor,
+          padding: "14px 18px",
+          cursor: hasRecord ? "pointer" : "default",
+          transition: "box-shadow 0.15s",
+        }}
+        onClick={() => {
+          if (hasPending || hasApproved) onClickRecord(todayRecord!.record_id, patient.name);
+        }}
+      >
+        {/* 상단: 환자 정보 + 뱃지 */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: "50%",
+              backgroundColor: riskLevel === "urgent" ? "#ffeaea" : hasApproved ? "#e6f7ec" : COLOR.grayBg,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 16, flexShrink: 0,
+            }}>
+              👤
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: COLOR.text }}>{patient.name}</p>
+              <p style={{ margin: 0, fontSize: 10, color: COLOR.textMuted }}>{patient.phone_number}</p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* 위험도 뱃지 */}
+            {riskConfig && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
+                backgroundColor: riskConfig.bg, color: riskConfig.color,
+                border: `1px solid ${riskConfig.border}`,
+              }}>
+                {riskConfig.label}
+              </span>
+            )}
+            {/* 기존 상태 뱃지 */}
+            {hasPending && !riskLevel && (
+              <span style={{ backgroundColor: "#ffe5e5", color: COLOR.danger, fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>
+                ● 미확인 기록
+              </span>
+            )}
+            {hasApproved && !riskLevel && (
+              <span style={{ backgroundColor: "#e6f7ec", color: COLOR.success, fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>
+                ✓ 오늘 승인됨
+              </span>
+            )}
+            {!hasRecord && (
+              <span style={{ fontSize: 10, color: COLOR.textMuted }}>오늘 미제출</span>
+            )}
+            <button
+              style={{ fontSize: 10, padding: "4px 12px", border: `1px solid ${COLOR.grayLight}`, borderRadius: 6, backgroundColor: COLOR.white, color: COLOR.textMuted, cursor: "pointer" }}
+              onClick={(e) => { e.stopPropagation(); onClickPast(patient.id, patient.name); }}
+            >
+              과거 기록
+            </button>
+          </div>
+        </div>
+
+        {/* AI 요약 */}
+        {todayRecord?.ai_summary && (
+          <div style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            backgroundColor: "rgba(0,0,0,0.03)",
+            borderRadius: 8,
+            borderLeft: `3px solid ${riskConfig?.border ?? "#e5e7eb"}`,
+          }}>
+            <p style={{ margin: 0, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>
+              {todayRecord.ai_summary}
+            </p>
+            {todayRecord.conversation_id && (
+              <button
+                style={{
+                  marginTop: 6, fontSize: 11, color: "#1b508a", fontWeight: 600,
+                  background: "none", border: "none", cursor: "pointer", padding: 0,
+                }}
+                onClick={(e) => { e.stopPropagation(); setShowConvModal(true); }}
+              >
+                대화 내용 보기 →
+              </button>
+            )}
+          </div>
         )}
-        {hasApproved && (
-          <span style={{ backgroundColor: "#e6f7ec", color: COLOR.success, fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>
-            ✓ 오늘 승인됨
-          </span>
-        )}
-        {!hasRecord && (
-          <span style={{ fontSize: 10, color: COLOR.textMuted }}>오늘 미제출</span>
-        )}
-        <button
-          style={{ fontSize: 10, padding: "4px 12px", border: `1px solid ${COLOR.grayLight}`, borderRadius: 6, backgroundColor: COLOR.white, color: COLOR.textMuted, cursor: "pointer" }}
-          onClick={(e) => { e.stopPropagation(); onClickPast(patient.id, patient.name); }}
-        >
-          과거 기록
-        </button>
       </div>
-    </div>
+    </>
   );
 }
 
