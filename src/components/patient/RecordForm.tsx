@@ -18,15 +18,23 @@ const SESSIONS = [1, 2, 3, 4, 5]
 const todayStr = () => new Date().toISOString().split('T')[0]
 
 interface Props {
-  onSubmit: (data: DailyRecordCreate) => void
-  isLoading: boolean
-  initialData?: DailyRecordResponse   // 이미 제출된 기록
-  isEditing?: boolean                  // true면 initialData가 있어도 편집 가능
+  onDraftSave: (data: DailyRecordCreate) => void   // 오늘 기록 저장 (임시)
+  onFinalSubmit: (data: DailyRecordCreate) => void // 최종 제출
+  isDraftLoading?: boolean
+  isFinalLoading?: boolean
+  initialData?: DailyRecordResponse
+  isReadOnly?: boolean                              // true면 읽기 전용
 }
 
-export default function RecordForm({ onSubmit, isLoading, initialData, isEditing = false }: Props) {
-  // initialData가 있고 편집 모드가 아니면 읽기 전용
-  const isReadOnly = !!initialData && !isEditing
+export default function RecordForm({
+  onDraftSave,
+  onFinalSubmit,
+  isDraftLoading = false,
+  isFinalLoading = false,
+  initialData,
+  isReadOnly = false,
+}: Props) {
+  const [submitWarning, setSubmitWarning] = useState(false)
 
   // ── 교환 기록 초기화 ─────────────────────────────────────────
   const initExchanges = (): ExchangeRecord[] => {
@@ -91,11 +99,8 @@ export default function RecordForm({ onSubmit, isLoading, initialData, isEditing
     0
   )
 
-  // ── 제출 ─────────────────────────────────────────────────────
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (isReadOnly) return
-
+  // ── 공통 페이로드 빌더 ──────────────────────────────────────
+  const buildPayload = (): DailyRecordCreate => {
     const validExchanges = exchanges.filter(
       (ex) =>
         ex.exchange_time ||
@@ -104,8 +109,7 @@ export default function RecordForm({ onSubmit, isLoading, initialData, isEditing
         ex.infusion_weight !== undefined ||
         ex.ultrafiltration !== undefined
     )
-
-    const payload: DailyRecordCreate = {
+    return {
       record_date: todayStr(),
       turbid_peritoneal: turbidPeritoneal,
       weight: weight ? parseFloat(weight) : undefined,
@@ -117,12 +121,42 @@ export default function RecordForm({ onSubmit, isLoading, initialData, isEditing
       memo: memo || undefined,
       exchange_records: validExchanges,
     }
+  }
 
-    onSubmit(payload)
+  // ── 교환 완료 횟수 (데이터가 하나라도 있는 회차) ──────────
+  const filledExchangeCount = exchanges.filter(
+    (ex) =>
+      ex.exchange_time ||
+      ex.drainage_volume !== undefined ||
+      ex.infusion_concentration !== undefined ||
+      ex.infusion_weight !== undefined ||
+      ex.ultrafiltration !== undefined
+  ).length
+
+  // ── 오늘 기록 저장 ───────────────────────────────────────────
+  const handleDraftSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (isReadOnly) return
+    onDraftSave(buildPayload())
+  }
+
+  // ── 최종 제출 ────────────────────────────────────────────────
+  const handleFinalSubmit = () => {
+    if (isReadOnly) return
+    setSubmitWarning(false)
+    onFinalSubmit(buildPayload())
+  }
+
+  const handleFinalClick = () => {
+    if (filledExchangeCount < 3) {
+      setSubmitWarning(true)
+    } else {
+      handleFinalSubmit()
+    }
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form className={styles.form} onSubmit={handleDraftSave}>
 
       {/* ── 교환 기록 테이블 ──────────────────────────────────── */}
       <section className={styles.section}>
@@ -357,14 +391,111 @@ export default function RecordForm({ onSubmit, isLoading, initialData, isEditing
       {/* ── 버튼 영역 ────────────────────────────────────────── */}
       {!isReadOnly && (
         <div className={styles.submitArea}>
-          <button type="submit" className={styles.submitBtn} disabled={isLoading}>
-            {isLoading
-              ? (isEditing ? '저장 중...' : '제출 중...')
-              : (isEditing ? '수정 저장하기 →' : '기록 제출하기 →')}
-          </button>
-          {!isEditing && (
-            <p className={styles.submitNote}>* 제출 후 후속 설문이 이어집니다.</p>
+
+          {/* 최종 제출 전 경고 메시지 */}
+          {submitWarning && (
+            <div style={{
+              marginBottom: 14,
+              padding: '12px 16px',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fcd34d',
+              borderRadius: 10,
+              fontSize: 13,
+              color: '#92400e',
+            }}>
+              <p style={{ fontWeight: 700, marginBottom: 6 }}>⚠ 교환 기록이 {filledExchangeCount}회차만 입력되었어요</p>
+              <p style={{ marginBottom: 12 }}>
+                하루 3회 미만은 투석이 부족할 수 있습니다.<br />
+                그래도 지금 최종 제출하시겠어요?
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleFinalSubmit}
+                  disabled={isFinalLoading}
+                  style={{
+                    flex: 1,
+                    padding: '9px 0',
+                    backgroundColor: '#d97706',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 13, fontWeight: 700,
+                    cursor: isFinalLoading ? 'not-allowed' : 'pointer',
+                    opacity: isFinalLoading ? 0.6 : 1,
+                  }}
+                >
+                  {isFinalLoading ? '제출 중...' : '그래도 제출하기'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSubmitWarning(false)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 0',
+                    backgroundColor: '#fff',
+                    color: '#6b7280',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 8,
+                    fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  계속 입력하기
+                </button>
+              </div>
+            </div>
           )}
+
+          {/* 버튼 행 */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            {/* 오늘 기록 저장 (임시저장) */}
+            <button
+              type="submit"
+              disabled={isDraftLoading || isFinalLoading}
+              style={{
+                flex: 1,
+                padding: '13px 0',
+                backgroundColor: '#fff',
+                color: '#1b508a',
+                border: '1.5px solid #1b508a',
+                borderRadius: 10,
+                fontSize: 14, fontWeight: 700,
+                cursor: isDraftLoading ? 'not-allowed' : 'pointer',
+                opacity: isDraftLoading ? 0.6 : 1,
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => { if (!isDraftLoading) e.currentTarget.style.backgroundColor = '#eff6ff' }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#fff' }}
+            >
+              {isDraftLoading ? '저장 중...' : '오늘 기록 저장'}
+            </button>
+
+            {/* 최종 제출 */}
+            <button
+              type="button"
+              onClick={handleFinalClick}
+              disabled={isDraftLoading || isFinalLoading}
+              style={{
+                flex: 2,
+                padding: '13px 0',
+                backgroundColor: '#1b508a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 14, fontWeight: 700,
+                cursor: isFinalLoading ? 'not-allowed' : 'pointer',
+                opacity: isFinalLoading ? 0.6 : 1,
+                transition: 'opacity 0.15s',
+              }}
+              onMouseEnter={e => { if (!isFinalLoading) e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+            >
+              {isFinalLoading ? '제출 중...' : '최종 제출하기 →'}
+            </button>
+          </div>
+
+          <p className={styles.submitNote}>* 최종 제출 후 후속 설문이 이어집니다.</p>
         </div>
       )}
     </form>

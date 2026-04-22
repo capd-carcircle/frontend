@@ -1,11 +1,11 @@
 import client from './client'
-import type { LoginRequest, TokenResponse, User } from '../types'
+import type { TokenResponse, User, Hospital, DoctorSummary, PatientRegistrationInfo } from '../types'
 
 /**
  * 로그인 → { access_token, user_id, name, role }
  */
-export async function login(email: LoginRequest['email'], password: LoginRequest['password']): Promise<TokenResponse> {
-  const { data } = await client.post<TokenResponse>('/api/v1/auth/login', { email, password })
+export async function login(phone_number: string, password: string): Promise<TokenResponse> {
+  const { data } = await client.post<TokenResponse>('/api/v1/auth/login', { phone_number, password })
   return data
 }
 
@@ -15,4 +15,85 @@ export async function login(email: LoginRequest['email'], password: LoginRequest
 export async function getMe(): Promise<User> {
   const { data } = await client.get<User>('/api/v1/auth/me')
   return data
+}
+
+// ── 회원가입 공통 ──────────────────────────────────────────
+
+export async function getHospitals(): Promise<Hospital[]> {
+  const { data } = await client.get<Hospital[]>('/api/v1/registration/hospitals')
+  return data
+}
+
+export async function getDoctors(hospital_id?: number): Promise<DoctorSummary[]> {
+  const params = hospital_id ? { hospital_id } : {}
+  const { data } = await client.get<DoctorSummary[]>('/api/v1/registration/doctors', { params })
+  return data
+}
+
+// ── 의사 가입 ──────────────────────────────────────────────
+
+export async function doctorVerify(payload: {
+  name: string
+  birth_date: string
+  license_number: string
+  hospital_id: number
+}): Promise<{ verify_token: string; name: string; hospital_id: number; license_number: string }> {
+  const { data } = await client.post('/api/v1/registration/doctor/verify', payload)
+  return data
+}
+
+export async function doctorComplete(payload: {
+  phone_number: string
+  password: string
+  verify_token: string
+}): Promise<void> {
+  await client.post('/api/v1/registration/doctor/complete', payload)
+}
+
+// ── 환자 가입 ──────────────────────────────────────────────
+
+export async function patientRequest(payload: {
+  name: string
+  birth_date: string
+  hospital_id: number
+  doctor_id: number
+}): Promise<{ registration_id: number }> {
+  const { data } = await client.post('/api/v1/registration/patient/request', payload)
+  return data
+}
+
+export async function patientCancelRequest(registration_id: number): Promise<void> {
+  await client.delete(`/api/v1/registration/patient/request/${registration_id}`)
+}
+
+export async function getRegistrationStatus(registration_id: number): Promise<{
+  registration_id: number
+  status: string
+  reject_reason: string | null
+}> {
+  const { data } = await client.get(`/api/v1/registration/patient/status/${registration_id}`)
+  return data
+}
+
+export async function patientComplete(payload: {
+  registration_id: number
+  phone_number: string
+  password: string
+}): Promise<void> {
+  await client.post('/api/v1/registration/patient/complete', payload)
+}
+
+// ── 의사용: 환자 가입 승인/거절 ────────────────────────────
+
+export async function getPendingRegistrations(): Promise<PatientRegistrationInfo[]> {
+  const { data } = await client.get<PatientRegistrationInfo[]>('/api/v1/registration/doctor/pending')
+  return data
+}
+
+export async function approveRegistration(registration_id: number): Promise<void> {
+  await client.post('/api/v1/registration/doctor/approve', { registration_id })
+}
+
+export async function rejectRegistration(registration_id: number, reason?: string): Promise<void> {
+  await client.post('/api/v1/registration/doctor/reject', { registration_id, reason })
 }

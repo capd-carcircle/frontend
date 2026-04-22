@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { btn, card, COLOR, contentBox, table, typography } from "../../styles/doctor";
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 /* ── 타입 ─────────────────────────────────────────────── */
 interface ExchangeRecord {
@@ -20,6 +20,7 @@ interface SurveyResponse {
   reason:        string | null;
   choice:        string | null;
   text_answer:   string | null;
+  answered:      boolean;
 }
 
 interface EMR {
@@ -89,27 +90,46 @@ function ExchangeTable({ exchanges }: { exchanges: ExchangeRecord[] }) {
   );
 }
 
-/* ── 설문 응답 섹션 ───────────────────────────────────── */
+/* ── 설문 응답 섹션 (미답변 포함) ────────────────────── */
 function SurveySection({ responses, type }: { responses: SurveyResponse[]; type: "common" | "ai" }) {
   const filtered = responses.filter((r) => r.question_type === type);
-  if (filtered.length === 0) return <p style={{ fontSize: 12, color: COLOR.textMuted }}>응답 없음</p>;
+  if (filtered.length === 0) return <p style={{ fontSize: 12, color: COLOR.textMuted }}>질문 없음</p>;
+
+  const answeredCount = filtered.filter((r) => r.answered).length;
 
   return (
     <>
+      {/* 답변 진행률 */}
+      <p style={{ fontSize: 10, color: COLOR.textMuted, marginBottom: 8 }}>
+        {answeredCount} / {filtered.length} 답변 완료
+      </p>
+
       {filtered.map((item, i) => (
-        <div key={i}>
+        <div key={i} style={{
+          marginTop: i === 0 ? 0 : 10,
+          padding: "8px 10px",
+          borderRadius: 6,
+          backgroundColor: item.answered ? "#f9fafb" : "#fff8f0",
+          border: item.answered ? "1px solid #f0f0f0" : "1px solid #fed7aa",
+        }}>
           {type === "ai" && item.reason && (
-            <p style={{ fontSize: 9, color: COLOR.primary, marginTop: i === 0 ? 0 : 12, marginBottom: 2 }}>
+            <p style={{ fontSize: 9, color: COLOR.primary, marginBottom: 2 }}>
               💡 {item.reason}
             </p>
           )}
-          <p style={{ ...typography.qaQuestion, marginTop: type === "ai" ? 0 : i === 0 ? 0 : 12 }}>
+          <p style={{ ...typography.qaQuestion, marginTop: 0 }}>
             {item.question_text}
           </p>
-          <p style={typography.qaAnswer}>
-            {item.choice === "yes" ? "예" : item.choice === "no" ? "아니오" : "-"}
-            {item.text_answer ? ` — ${item.text_answer}` : ""}
-          </p>
+          {item.answered ? (
+            <p style={typography.qaAnswer}>
+              {item.choice === "yes" ? "예" : item.choice === "no" ? "아니오" : "—"}
+              {item.text_answer ? ` — ${item.text_answer}` : ""}
+            </p>
+          ) : (
+            <p style={{ fontSize: 11, color: "#f97316", fontWeight: 600, marginTop: 4 }}>
+              ⏳ 미답변
+            </p>
+          )}
         </div>
       ))}
     </>

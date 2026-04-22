@@ -20,7 +20,7 @@ const S: { [key: string]: React.CSSProperties } = {
    NAV ITEMS
    ========================================================= */
 const navItems = [
-  { icon: "📊", label: "대시보드",     path: "/doctor" },
+  { icon: "📊", label: "나의 환자",    path: "/doctor" },
   { icon: "❓", label: "공통 질문",    path: "/doctor/common-questions" },
   { icon: "🤖", label: "AI 맞춤 질문", path: "/doctor/ai-questions" },
 ];

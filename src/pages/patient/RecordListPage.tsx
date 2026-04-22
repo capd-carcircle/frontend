@@ -4,30 +4,42 @@ import { getMyRecords, DailyRecordResponse } from '../../api/records'
 
 // ── 상수 ──────────────────────────────────────────────────────
 const STATUS_LABEL: Record<string, string> = {
+  draft:     '작성 중',
   submitted: '검토 대기',
   reviewed:  '검토 완료',
   rejected:  '반려',
 }
 const STATUS_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
+  draft:     { bg: '#f3f4f6', text: '#4b5563', dot: '#9ca3af' },
   submitted: { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' },
   reviewed:  { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e' },
   rejected:  { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
 }
 const SESSIONS = [1, 2, 3, 4, 5]
+const DAYS = ['일', '월', '화', '수', '목', '금', '토']
 
 // ── 유틸 ──────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().split('T')[0]
 
+// "2025년 12월 1일 (월)" — TODAY 카드용
 const formatDateFull = (dateStr: string) => {
-  const d = new Date(dateStr)
-  const days = ['일', '월', '화', '수', '목', '금', '토']
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`
 }
 
-const formatDateShort = (dateStr: string) => {
+// "12월 1일 (월)" — 기록 아이템용 (월그룹 헤더에 연도 있으므로)
+const formatDateInGroup = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00')
-  const days = ['일', '월', '화', '수', '목', '금', '토']
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`
+}
+
+// "YYYY-MM" 키 추출
+const monthKey = (dateStr: string) => dateStr.slice(0, 7)
+
+// "2025년 12월" 표시용
+const formatMonthLabel = (key: string) => {
+  const [y, m] = key.split('-')
+  return `${y}년 ${parseInt(m)}월`
 }
 
 // ── 배지 컴포넌트 ──────────────────────────────────────────────
@@ -117,9 +129,7 @@ function RecordItem({ record, isOpen, onToggle }: {
       overflow: 'hidden',
       boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       border: '1px solid #f0f0f0',
-      transition: 'box-shadow 0.15s',
     }}>
-      {/* 헤더 행 */}
       <div
         style={{
           display: 'flex', alignItems: 'center',
@@ -131,7 +141,7 @@ function RecordItem({ record, isOpen, onToggle }: {
       >
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', marginBottom: 2 }}>
-            {formatDateShort(record.record_date)}
+            {formatDateInGroup(record.record_date)}
           </p>
           {summaryParts.length > 0 && (
             <p style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
@@ -149,10 +159,8 @@ function RecordItem({ record, isOpen, onToggle }: {
         }}>▼</span>
       </div>
 
-      {/* 펼쳐진 상세 */}
       {isOpen && (
         <div style={{ padding: '0 14px 16px', borderTop: '1px solid #f0f0f0' }}>
-          {/* 교환 기록 테이블 */}
           <div style={{ marginTop: 14 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
               투석 교환 기록
@@ -160,7 +168,6 @@ function RecordItem({ record, isOpen, onToggle }: {
             <ExchangeTable record={record} />
           </div>
 
-          {/* 기타 바이탈 */}
           <div style={{ marginTop: 14 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
               기타 기록
@@ -184,7 +191,6 @@ function RecordItem({ record, isOpen, onToggle }: {
             </div>
           </div>
 
-          {/* 메모 */}
           {record.memo && (
             <div style={{ marginTop: 12, backgroundColor: '#fffbeb', borderRadius: 8, padding: '10px 12px', border: '1px solid #fde68a' }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>📝 메모</p>
@@ -197,16 +203,84 @@ function RecordItem({ record, isOpen, onToggle }: {
   )
 }
 
+// ── 월 그룹 헤더 ───────────────────────────────────────────────
+function MonthGroup({ label, count, isOpen, onToggle, children }: {
+  label: string
+  count: number
+  isOpen: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* 월 헤더 */}
+      <div
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 14px',
+          backgroundColor: isOpen ? '#1b508a' : '#e8f0f9',
+          borderRadius: isOpen ? '10px 10px 0 0' : 10,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s',
+          marginBottom: isOpen ? 0 : 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: isOpen ? '#fff' : '#1b508a' }}>
+            {label}
+          </span>
+          <span style={{
+            fontSize: 11, fontWeight: 600,
+            backgroundColor: isOpen ? 'rgba(255,255,255,0.2)' : '#1b508a',
+            color: '#fff',
+            padding: '1px 8px', borderRadius: 20,
+          }}>
+            {count}건
+          </span>
+        </div>
+        <span style={{
+          fontSize: 11,
+          color: isOpen ? '#fff' : '#1b508a',
+          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.2s',
+          display: 'inline-block',
+        }}>▼</span>
+      </div>
+
+      {/* 펼쳐진 기록 목록 */}
+      {isOpen && (
+        <div style={{
+          border: '1px solid #dbeafe',
+          borderTop: 'none',
+          borderRadius: '0 0 10px 10px',
+          padding: '12px 10px 4px',
+          backgroundColor: '#f8faff',
+        }}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── 메인 페이지 ────────────────────────────────────────────────
 export default function RecordListPage() {
   const navigate = useNavigate()
-  const [records, setRecords] = useState<DailyRecordResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [openId, setOpenId]   = useState<number | null>(null)
+  const [records, setRecords]       = useState<DailyRecordResponse[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [openId, setOpenId]         = useState<number | null>(null)
+  const [openMonths, setOpenMonths] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getMyRecords()
-      .then(setRecords)
+      .then((data) => {
+        setRecords(data)
+        // 이번 달만 기본으로 펼침
+        const thisMonth = new Date().toISOString().slice(0, 7)
+        setOpenMonths(new Set([thisMonth]))
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -215,11 +289,31 @@ export default function RecordListPage() {
   const todayRec = records.find((r) => r.record_date === today) ?? null
   const pastRecs = records.filter((r) => r.record_date !== today)
 
-  const toggleOpen = (id: number) => setOpenId((prev) => (prev === id ? null : id))
+  // 월별 그룹핑 (최신월 순)
+  const monthGroups: { key: string; label: string; recs: DailyRecordResponse[] }[] = []
+  const seen = new Set<string>()
+  for (const rec of pastRecs) {
+    const key = monthKey(rec.record_date)
+    if (!seen.has(key)) {
+      seen.add(key)
+      monthGroups.push({ key, label: formatMonthLabel(key), recs: [] })
+    }
+    monthGroups.find((g) => g.key === key)!.recs.push(rec)
+  }
+
+  const toggleMonth = (key: string) => {
+    setOpenMonths((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  const toggleRecord = (id: number) => setOpenId((prev) => (prev === id ? null : id))
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
-      {/* ── 헤더 ── */}
+      {/* 헤더 */}
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, height: 56,
         backgroundColor: '#1b508a',
@@ -242,7 +336,7 @@ export default function RecordListPage() {
           </div>
         ) : (
           <>
-            {/* ── 오늘 카드 ── */}
+            {/* 오늘 카드 */}
             <div style={{
               background: todayRec
                 ? '#fff'
@@ -300,25 +394,40 @@ export default function RecordListPage() {
                 onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                 onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
               >
-                {todayRec ? '보기 / 수정' : '지금 기록하기'}
+                {!todayRec
+                  ? '지금 기록하기'
+                  : todayRec.status === 'draft'
+                  ? '이어서 기록하기'
+                  : '기록 보기'}
               </button>
             </div>
 
-            {/* ── 과거 기록 목록 ── */}
-            {pastRecs.length > 0 ? (
+            {/* 지난 기록 — 월별 그룹 */}
+            {monthGroups.length > 0 ? (
               <>
                 <p style={{
                   fontSize: 11, fontWeight: 700, color: '#9ca3af',
                   textTransform: 'uppercase', letterSpacing: '0.06em',
-                  marginBottom: 10,
+                  marginBottom: 12,
                 }}>지난 기록</p>
-                {pastRecs.map((rec) => (
-                  <RecordItem
-                    key={rec.id}
-                    record={rec}
-                    isOpen={openId === rec.id}
-                    onToggle={() => toggleOpen(rec.id)}
-                  />
+
+                {monthGroups.map(({ key, label, recs }) => (
+                  <MonthGroup
+                    key={key}
+                    label={label}
+                    count={recs.length}
+                    isOpen={openMonths.has(key)}
+                    onToggle={() => toggleMonth(key)}
+                  >
+                    {recs.map((rec) => (
+                      <RecordItem
+                        key={rec.id}
+                        record={rec}
+                        isOpen={openId === rec.id}
+                        onToggle={() => toggleRecord(rec.id)}
+                      />
+                    ))}
+                  </MonthGroup>
                 ))}
               </>
             ) : (

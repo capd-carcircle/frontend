@@ -1,9 +1,13 @@
 import React from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import LoginPage from "../pages/auth/LoginPage";
+import RegisterPage from "../pages/auth/RegisterPage";
+import DoctorRegisterPage from "../pages/auth/DoctorRegisterPage";
+import PatientRegisterPage from "../pages/auth/PatientRegisterPage";
 import { DoctorLayout } from "../pages/doctor/Layout";
 import DashboardPage from "../pages/doctor/DashboardPage";
 import RecordDetailPage from "../pages/doctor/RecordDetailPage";
+import PatientRecordsPage from "../pages/doctor/PatientRecordsPage";
 import CommonQPage from "../pages/doctor/CommonQPage";
 import AIReviewPage from "../pages/doctor/AIReviewPage";
 import RecordListPage from "../pages/patient/RecordListPage";
@@ -35,6 +39,19 @@ const router = createBrowserRouter([
     path: "/login",
     element: <LoginPage />,
   },
+  // ── 회원가입 ───────────────────────────────────────────────────
+  {
+    path: "/register",
+    element: <RegisterPage />,
+  },
+  {
+    path: "/register/doctor",
+    element: <DoctorRegisterPage />,
+  },
+  {
+    path: "/register/patient",
+    element: <PatientRegisterPage />,
+  },
   // ── 의사 ──────────────────────────────────────────────────
   {
     path: "/doctor",
@@ -43,6 +60,10 @@ const router = createBrowserRouter([
   {
     path: "/doctor/record",
     element: <PrivateRoute><DoctorLayout><RecordDetailPage /></DoctorLayout></PrivateRoute>,
+  },
+  {
+    path: "/doctor/patients/:patientId",
+    element: <PrivateRoute><DoctorLayout><PatientRecordsPage /></DoctorLayout></PrivateRoute>,
   },
   {
     path: "/doctor/common-questions",

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
 import styles from './LoginPage.module.css'
 
@@ -7,13 +7,13 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { login, isLoading, error } = useAuthStore()
 
-  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const role = await login(email, password)
+      const role = await login(phone, password)
       if (role === 'doctor') navigate('/doctor')
       else navigate('/patient')
     } catch {
@@ -33,16 +33,16 @@ export default function LoginPage() {
         {/* 로그인 폼 */}
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="email">이메일</label>
+            <label className={styles.label} htmlFor="phone">전화번호</label>
             <input
-              id="email"
-              type="email"
+              id="phone"
+              type="tel"
               className={styles.input}
-              placeholder="이메일을 입력하세요"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="전화번호를 입력하세요 (예: 01012345678)"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="tel"
             />
           </div>
 
@@ -71,11 +71,21 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* 회원가입 링크 */}
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <Link
+            to="/register"
+            style={{ color: '#4A7FFF', fontSize: '14px', textDecoration: 'none' }}
+          >
+            계정이 없으신가요? 회원가입
+          </Link>
+        </div>
+
         {/* 개발용 테스트 계정 안내 */}
         <div className={styles.devNote}>
           <p>테스트 계정</p>
-          <p>의사: doctor@test.com / test1234</p>
-          <p>환자: patient@test.com / test1234</p>
+          <p>의사: 01011112222 / test1234</p>
+          <p>환자: 01033334444 / test1234</p>
         </div>
       </div>
     </div>

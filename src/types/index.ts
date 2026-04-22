@@ -10,7 +10,7 @@ export interface User {
 }
 
 export interface LoginRequest {
-  email: string
+  phone_number: string
   password: string
 }
 
@@ -20,6 +20,30 @@ export interface TokenResponse {
   user_id: number
   name: string
   role: UserRole
+}
+
+// ── 회원가입 ────────────────────────────────────────────────
+export interface Hospital {
+  id: number
+  name: string
+  address?: string
+}
+
+export interface DoctorSummary {
+  id: number
+  name: string
+  hospital_name?: string
+}
+
+export type RegistrationStatus = 'pending' | 'approved' | 'rejected' | 'completed'
+
+export interface PatientRegistrationInfo {
+  id: number
+  name: string
+  birth_date: string
+  hospital_name?: string
+  status: RegistrationStatus
+  created_at: string
 }
 
 // ── 교환기록 (ExchangeRecord) ──────────────────────────────

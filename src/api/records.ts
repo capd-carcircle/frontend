@@ -40,7 +40,7 @@ export interface DailyRecordResponse {
   total_ultrafiltration?: number
   fasting_blood_glucose?: number
   memo?: string
-  status: 'submitted' | 'reviewed' | 'rejected'
+  status: 'draft' | 'submitted' | 'reviewed' | 'rejected'
   submitted_at?: string
   exchange_records: ExchangeRecordResponse[]
   created_at: string
@@ -84,4 +84,10 @@ export const updateRecord = async (
 
 export const deleteRecord = async (id: number): Promise<void> => {
   await client.delete(`/api/v1/records/${id}`)
+}
+
+/** 임시저장(draft) 기록을 최종 제출 → submitted + AI 질문 생성 */
+export const finalizeRecord = async (id: number): Promise<DailyRecordResponse> => {
+  const res = await client.post(`/api/v1/records/${id}/submit`)
+  return res.data
 }

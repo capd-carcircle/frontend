@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   submitRecord,
   updateRecord,
+  finalizeRecord,
   getMyRecords,
   DailyRecordCreate,
   DailyRecordResponse,
@@ -19,11 +20,13 @@ const getKoreanDate = (): string => {
 }
 
 const STATUS_LABEL: Record<string, string> = {
+  draft:     '작성 중',
   submitted: '검토 대기 중',
   reviewed:  '검토 완료',
   rejected:  '반려',
 }
 const STATUS_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
+  draft:     { bg: '#f3f4f6', text: '#4b5563', dot: '#9ca3af' },
   submitted: { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' },
   reviewed:  { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e' },
   rejected:  { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
@@ -49,9 +52,10 @@ export default function RecordSubmitPage() {
 
   const [checkLoading, setCheckLoading]   = useState(true)
   const [todayRecord, setTodayRecord]     = useState<DailyRecordResponse | null>(null)
-  const [submitLoading, setSubmitLoading] = useState(false)
+  const [draftLoading, setDraftLoading]   = useState(false)
+  const [finalLoading, setFinalLoading]   = useState(false)
+  const [saveSuccess, setSaveSuccess]     = useState(false)
   const [error, setError]                 = useState<string | null>(null)
-  const [isEditing, setIsEditing]         = useState(false)
 
   /* ── 오늘 기록 확인 ─────────────────────────────────────────── */
   useEffect(() => {
@@ -69,49 +73,80 @@ export default function RecordSubmitPage() {
     check()
   }, [])
 
-  /* ── 신규 제출 ──────────────────────────────────────────────── */
-  const handleSubmit = async (data: DailyRecordCreate) => {
-    setSubmitLoading(true)
+  /* ── 오늘 기록 저장 (임시저장) ──────────────────────────────── */
+  const handleDraftSave = async (data: DailyRecordCreate) => {
+    setDraftLoading(true)
+    setError(null)
+    setSaveSuccess(false)
+    try {
+      if (todayRecord) {
+        // 기존 기록 업데이트
+        const payload: DailyRecordUpdate = {
+          turbid_peritoneal:     data.turbid_peritoneal,
+          weight:                data.weight,
+          blood_pressure:        data.blood_pressure,
+          urine_count:           data.urine_count,
+          total_ultrafiltration: data.total_ultrafiltration,
+          fasting_blood_glucose: data.fasting_blood_glucose,
+          memo:                  data.memo,
+          exchange_records:      data.exchange_records,
+        }
+        const updated = await updateRecord(todayRecord.id, payload)
+        setTodayRecord(updated)
+      } else {
+        // 신규 생성 (draft 상태)
+        const record = await submitRecord(data)
+        setTodayRecord(record)
+      }
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 2500)
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        '저장에 실패했습니다.'
+      setError(msg)
+    } finally {
+      setDraftLoading(false)
+    }
+  }
+
+  /* ── 최종 제출 ──────────────────────────────────────────────── */
+  const handleFinalSubmit = async (data: DailyRecordCreate) => {
+    setFinalLoading(true)
     setError(null)
     try {
-      const record = await submitRecord(data)
-      navigate('/patient/survey', { state: { recordId: record.id } })
+      let recordId: number
+
+      if (todayRecord) {
+        // 기존 기록 먼저 업데이트 후 finalize
+        const payload: DailyRecordUpdate = {
+          turbid_peritoneal:     data.turbid_peritoneal,
+          weight:                data.weight,
+          blood_pressure:        data.blood_pressure,
+          urine_count:           data.urine_count,
+          total_ultrafiltration: data.total_ultrafiltration,
+          fasting_blood_glucose: data.fasting_blood_glucose,
+          memo:                  data.memo,
+          exchange_records:      data.exchange_records,
+        }
+        await updateRecord(todayRecord.id, payload)
+        recordId = todayRecord.id
+      } else {
+        // 신규 생성
+        const record = await submitRecord(data)
+        recordId = record.id
+      }
+
+      // draft → submitted (AI 질문 생성 트리거)
+      await finalizeRecord(recordId)
+      navigate('/patient/survey', { state: { recordId } })
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         '제출에 실패했습니다.'
       setError(msg)
     } finally {
-      setSubmitLoading(false)
-    }
-  }
-
-  /* ── 수정 저장 ──────────────────────────────────────────────── */
-  const handleUpdate = async (data: DailyRecordCreate) => {
-    if (!todayRecord) return
-    setSubmitLoading(true)
-    setError(null)
-    try {
-      const payload: DailyRecordUpdate = {
-        turbid_peritoneal:     data.turbid_peritoneal,
-        weight:                data.weight,
-        blood_pressure:        data.blood_pressure,
-        urine_count:           data.urine_count,
-        total_ultrafiltration: data.total_ultrafiltration,
-        fasting_blood_glucose: data.fasting_blood_glucose,
-        memo:                  data.memo,
-        exchange_records:      data.exchange_records,
-      }
-      const updated = await updateRecord(todayRecord.id, payload)
-      setTodayRecord(updated)
-      setIsEditing(false)
-    } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        '수정에 실패했습니다.'
-      setError(msg)
-    } finally {
-      setSubmitLoading(false)
+      setFinalLoading(false)
     }
   }
 
@@ -154,7 +189,9 @@ export default function RecordSubmitPage() {
     )
   }
 
-  /* ── 메인 렌더 ──────────────────────────────────────────────── */
+  /* ── 이미 최종 제출된 기록: 읽기 전용 뷰 ──────────────────── */
+  const isSubmitted = todayRecord && todayRecord.status !== 'draft'
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
       <Header />
@@ -174,15 +211,28 @@ export default function RecordSubmitPage() {
                 {getKoreanDate()}
               </p>
               <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-                {todayRecord && !isEditing
-                  ? '오늘 기록이 이미 제출되었습니다.'
-                  : isEditing
-                  ? '기록을 수정하고 저장해 주세요.'
+                {isSubmitted
+                  ? '최종 제출된 기록입니다.'
+                  : todayRecord
+                  ? '이어서 기록을 입력하고 최종 제출해 주세요.'
                   : '오늘의 CAPD 투석 기록을 입력해 주세요.'}
               </p>
             </div>
             {todayRecord && <Badge status={todayRecord.status} />}
           </div>
+
+          {/* 저장 성공 메시지 */}
+          {saveSuccess && (
+            <div style={{
+              marginTop: 12, padding: '9px 14px',
+              backgroundColor: '#f0fdf4', borderRadius: 8,
+              border: '1px solid #bbf7d0',
+              fontSize: 13, color: '#16a34a',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              ✓ 오늘 기록이 저장되었습니다. 나중에 이어서 입력할 수 있어요.
+            </div>
+          )}
 
           {/* 에러 메시지 */}
           {error && (
@@ -198,65 +248,34 @@ export default function RecordSubmitPage() {
           )}
         </div>
 
-        {/* ── 오늘 기록 있을 때: 액션 버튼 행 ── */}
-        {todayRecord && !isEditing && (
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        {/* ── 최종 제출 후: 설문 버튼 ── */}
+        {isSubmitted && (
+          <div style={{ marginBottom: 16 }}>
             <button
               style={{
-                flex: 1, padding: '12px 18px',
+                width: '100%', padding: '13px 18px',
                 backgroundColor: '#1b508a', color: '#fff',
                 border: 'none', borderRadius: 10,
                 fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                minWidth: 140,
                 transition: 'opacity 0.15s',
               }}
               onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
               onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-              onClick={() => navigate('/patient/survey', { state: { recordId: todayRecord.id } })}
+              onClick={() => navigate('/patient/survey', { state: { recordId: todayRecord!.id } })}
             >
               후속 설문 답변하기 →
             </button>
-            {todayRecord.status === 'submitted' && (
-              <button
-                style={{
-                  padding: '12px 18px',
-                  backgroundColor: '#fff', color: '#1b508a',
-                  border: '1.5px solid #1b508a', borderRadius: 10,
-                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#fff' }}
-                onClick={() => setIsEditing(true)}
-              >
-                수정하기
-              </button>
-            )}
           </div>
-        )}
-
-        {/* ── 수정 모드일 때: 취소 버튼 ── */}
-        {todayRecord && isEditing && (
-          <button
-            style={{
-              marginBottom: 14, padding: '8px 16px',
-              backgroundColor: 'transparent', color: '#6b7280',
-              border: '1px solid #d1d5db', borderRadius: 8,
-              fontSize: 13, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}
-            onClick={() => { setIsEditing(false); setError(null) }}
-          >
-            ← 수정 취소
-          </button>
         )}
 
         {/* 폼 */}
         <RecordForm
-          onSubmit={todayRecord ? handleUpdate : handleSubmit}
-          isLoading={submitLoading}
+          onDraftSave={handleDraftSave}
+          onFinalSubmit={handleFinalSubmit}
+          isDraftLoading={draftLoading}
+          isFinalLoading={finalLoading}
           initialData={todayRecord ?? undefined}
-          isEditing={isEditing}
+          isReadOnly={!!isSubmitted}
         />
       </main>
     </div>

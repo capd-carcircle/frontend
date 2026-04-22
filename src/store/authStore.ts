@@ -6,7 +6,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   error: string | null
-  login: (email: string, password: string) => Promise<UserRole>
+  login: (phone_number: string, password: string) => Promise<UserRole>
   logout: () => void
   restoreUser: (user: User) => void
 }
@@ -16,16 +16,16 @@ const useAuthStore = create<AuthState>((set) => ({
   isLoading: false,
   error: null,
 
-  login: async (email, password) => {
+  login: async (phone_number, password) => {
     set({ isLoading: true, error: null })
     try {
-      const data = await apiLogin(email, password)
+      const data = await apiLogin(phone_number, password)
       localStorage.setItem('access_token', data.access_token)
       set({
         user: { id: data.user_id, name: data.name, role: data.role },
         isLoading: false,
       })
-      return data.role  // 역할에 따라 리다이렉트용
+      return data.role
     } catch (err: unknown) {
       const msg =
         typeof err === 'object' &&
