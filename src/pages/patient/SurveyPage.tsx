@@ -289,7 +289,7 @@ export default function SurveyPage() {
   })
 
   // 공통 질문 전체 답변 완료 여부 (AI 문진 시작 버튼 활성화)
-  const allCommonAnswered = commonQs.length > 0 && commonQs.every(q => {
+  const allCommonAnswered = commonQs.length === 0 || commonQs.every(q => {
     const a = answers[q.question_id]
     return a?.choice !== null
   })
