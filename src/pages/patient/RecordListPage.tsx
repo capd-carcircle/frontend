@@ -2,100 +2,97 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getMyRecords, DailyRecordResponse } from '../../api/records'
 
-// ── 상수 ──────────────────────────────────────────────────────
+const C = {
+  primary:      'var(--capd-primary)',
+  primaryLight: 'var(--capd-primary-light)',
+  primaryDark:  'var(--capd-primary-dark)',
+  bg:           'var(--capd-bg)',
+  border:       'var(--capd-border)',
+  text:         '#1a1a2e',
+  textMuted:    '#6b7280',
+  textLight:    '#9ca3af',
+  success:      '#16a34a',
+  successLight: '#f0fdf4',
+  danger:       '#dc2626',
+  dangerLight:  '#fef2f2',
+  warning:      '#d97706',
+  warningLight: '#fffbeb',
+}
+
 const STATUS_LABEL: Record<string, string> = {
   draft:     '작성 중',
   submitted: '검토 대기',
   reviewed:  '검토 완료',
   rejected:  '반려',
 }
-const STATUS_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
-  draft:     { bg: '#f3f4f6', text: '#4b5563', dot: '#9ca3af' },
-  submitted: { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' },
-  reviewed:  { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e' },
-  rejected:  { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
+const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
+  draft:     { bg: '#f3f4f6',       color: '#4b5563'  },
+  submitted: { bg: C.primaryLight,  color: C.primaryDark },
+  reviewed:  { bg: C.successLight,  color: C.success  },
+  rejected:  { bg: C.dangerLight,   color: C.danger   },
 }
+
 const SESSIONS = [1, 2, 3, 4, 5]
-const DAYS = ['일', '월', '화', '수', '목', '금', '토']
-
-// ── 유틸 ──────────────────────────────────────────────────────
+const DAYS = ['일','월','화','수','목','금','토']
 const todayStr = () => new Date().toISOString().split('T')[0]
-
-// "2025년 12월 1일 (월)" — TODAY 카드용
-const formatDateFull = (dateStr: string) => {
-  const d = new Date(dateStr + 'T00:00:00')
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`
+const formatDateFull = (s: string) => {
+  const d = new Date(s + 'T00:00:00')
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`
 }
-
-// "12월 1일 (월)" — 기록 아이템용 (월그룹 헤더에 연도 있으므로)
-const formatDateInGroup = (dateStr: string) => {
-  const d = new Date(dateStr + 'T00:00:00')
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`
+const formatDateShort = (s: string) => {
+  const d = new Date(s + 'T00:00:00')
+  return `${d.getMonth()+1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`
 }
+const monthKey = (s: string) => s.slice(0, 7)
+const formatMonth = (k: string) => { const [y,m] = k.split('-'); return `${y}년 ${parseInt(m)}월` }
 
-// "YYYY-MM" 키 추출
-const monthKey = (dateStr: string) => dateStr.slice(0, 7)
-
-// "2025년 12월" 표시용
-const formatMonthLabel = (key: string) => {
-  const [y, m] = key.split('-')
-  return `${y}년 ${parseInt(m)}월`
-}
-
-// ── 배지 컴포넌트 ──────────────────────────────────────────────
 function Badge({ status }: { status: string }) {
-  const c = STATUS_COLOR[status] ?? { bg: '#f3f4f6', text: '#6b7280', dot: '#9ca3af' }
+  const s = STATUS_STYLE[status] ?? { bg: '#f3f4f6', color: '#6b7280' }
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
       padding: '3px 10px', borderRadius: 20,
-      fontSize: 11, fontWeight: 600,
-      backgroundColor: c.bg, color: c.text,
+      fontSize: 11, fontWeight: 700,
+      background: s.bg, color: s.color,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: c.dot, flexShrink: 0 }} />
       {STATUS_LABEL[status] ?? status}
     </span>
   )
 }
 
-// ── 교환 기록 소형 테이블 ──────────────────────────────────────
-function ExchangeTable({ record }: { record: DailyRecordResponse }) {
+function ExchangeMini({ record }: { record: DailyRecordResponse }) {
   const bySession: Record<number, (typeof record.exchange_records)[0]> = {}
-  record.exchange_records.forEach((e) => { bySession[e.session_number] = e })
+  record.exchange_records.forEach(e => { bySession[e.session_number] = e })
   if (record.exchange_records.length === 0)
-    return <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>교환 기록 없음</p>
+    return <p style={{ fontSize: 12, color: C.textLight, margin: 0 }}>교환 기록 없음</p>
 
   const rows = [
-    { label: '교환 시간',   key: 'exchange_time' as const },
-    { label: '배액량 (g)',  key: 'drainage_volume' as const },
-    { label: '농도 (%)',    key: 'infusion_concentration' as const },
-    { label: '주입 (g)',    key: 'infusion_weight' as const },
-    { label: '제수량 (g)',  key: 'ultrafiltration' as const },
+    { label: '시간',    key: 'exchange_time'          as const },
+    { label: '배액 (g)', key: 'drainage_volume'       as const },
+    { label: '농도 (%)', key: 'infusion_concentration' as const },
+    { label: '주입 (g)', key: 'infusion_weight'       as const },
+    { label: '제수 (g)', key: 'ultrafiltration'       as const },
   ]
 
   return (
-    <div style={{ borderRadius: 8, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
-        <colgroup>
-          <col style={{ width: 78 }} />
-          {SESSIONS.map((n) => <col key={n} />)}
-        </colgroup>
+    <div style={{ borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
         <thead>
           <tr>
-            <th style={{ backgroundColor: '#1b508a', color: '#fff', padding: '7px 6px', textAlign: 'left', fontWeight: 600 }}>항목</th>
-            {SESSIONS.map((n) => (
-              <th key={n} style={{ backgroundColor: '#e8f0f9', color: '#1b508a', padding: '7px 4px', textAlign: 'center', fontWeight: 600 }}>{n}회차</th>
+            <th style={{ background: C.primary, color: '#fff', padding: '6px 8px', textAlign: 'left', fontWeight: 700, width: 70 }}>항목</th>
+            {SESSIONS.map(n => (
+              <th key={n} style={{ background: C.primaryLight, color: C.primaryDark, padding: '6px 4px', textAlign: 'center', fontWeight: 700 }}>{n}회</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={row.key} style={{ backgroundColor: ri % 2 === 0 ? '#fff' : '#f9fafb' }}>
-              <td style={{ padding: '6px 6px', color: '#374151', fontWeight: 500, borderTop: '1px solid #f0f0f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</td>
-              {SESSIONS.map((n) => {
+            <tr key={row.key} style={{ background: ri % 2 === 0 ? '#fff' : C.bg }}>
+              <td style={{ padding: '5px 8px', color: C.textMuted, fontWeight: 600, borderTop: `1px solid ${C.border}` }}>{row.label}</td>
+              {SESSIONS.map(n => {
                 const val = bySession[n]?.[row.key]
                 return (
-                  <td key={n} style={{ padding: '6px 4px', textAlign: 'center', color: val != null ? '#1a1a2e' : '#d1d5db', borderTop: '1px solid #f0f0f0' }}>
+                  <td key={n} style={{ padding: '5px 4px', textAlign: 'center', color: val != null ? C.text : '#d1d5db', borderTop: `1px solid ${C.border}` }}>
                     {val != null ? String(val) : '—'}
                   </td>
                 )
@@ -108,70 +105,40 @@ function ExchangeTable({ record }: { record: DailyRecordResponse }) {
   )
 }
 
-// ── 기록 아이템 (아코디언) ──────────────────────────────────────
 function RecordItem({ record, isOpen, onToggle }: {
-  record: DailyRecordResponse
-  isOpen: boolean
-  onToggle: () => void
+  record: DailyRecordResponse; isOpen: boolean; onToggle: () => void
 }) {
   const uf = record.total_ultrafiltration
   const summaryParts = [
     record.weight != null ? `체중 ${record.weight}kg` : null,
-    uf != null ? `한외여과 ${uf > 0 ? '+' : ''}${uf}g` : null,
+    uf != null ? `제수량 ${uf > 0 ? '+' : ''}${uf}g` : null,
     record.turbid_peritoneal ? '⚠ 혼탁' : null,
   ].filter(Boolean)
 
   return (
-    <div style={{
-      backgroundColor: '#fff',
-      borderRadius: 12,
-      marginBottom: 8,
-      overflow: 'hidden',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-      border: '1px solid #f0f0f0',
-    }}>
+    <div style={{ background: '#fff', borderRadius: 12, marginBottom: 8, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
       <div
-        style={{
-          display: 'flex', alignItems: 'center',
-          padding: '14px 16px', cursor: 'pointer',
-          userSelect: 'none', gap: 10,
-          backgroundColor: isOpen ? '#fafbfc' : '#fff',
-        }}
         onClick={onToggle}
+        style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer', userSelect: 'none', gap: 10, background: isOpen ? C.bg : '#fff' }}
       >
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', marginBottom: 2 }}>
-            {formatDateInGroup(record.record_date)}
-          </p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{formatDateShort(record.record_date)}</p>
           {summaryParts.length > 0 && (
-            <p style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-              {summaryParts.join(' · ')}
-            </p>
+            <p style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{summaryParts.join(' · ')}</p>
           )}
         </div>
         <Badge status={record.status} />
-        <span style={{
-          fontSize: 11, color: '#9ca3af',
-          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: 'transform 0.2s',
-          marginLeft: 4,
-          display: 'inline-block',
-        }}>▼</span>
+        <span style={{ fontSize: 11, color: C.textLight, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▼</span>
       </div>
 
       {isOpen && (
-        <div style={{ padding: '0 14px 16px', borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ padding: '0 14px 16px', borderTop: `1px solid ${C.border}` }}>
           <div style={{ marginTop: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              투석 교환 기록
-            </p>
-            <ExchangeTable record={record} />
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>투석 교환 기록</p>
+            <ExchangeMini record={record} />
           </div>
-
           <div style={{ marginTop: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              기타 기록
-            </p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>기타 기록</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 10px' }}>
               {[
                 { label: '복막액 혼탁', value: record.turbid_peritoneal ? '있음 ⚠' : '없음', warn: record.turbid_peritoneal },
@@ -180,21 +147,18 @@ function RecordItem({ record, isOpen, onToggle }: {
                 { label: '소변 횟수',   value: record.urine_count != null ? `${record.urine_count}회` : '—', warn: false },
                 { label: '제수량 합계', value: uf != null ? `${uf} g` : '—', warn: false },
                 { label: '공복혈당',    value: record.fasting_blood_glucose != null ? `${record.fasting_blood_glucose} mg/dL` : '—', warn: false },
-              ].map((item) => (
-                <div key={item.label} style={{ backgroundColor: '#f9fafb', borderRadius: 8, padding: '8px 10px' }}>
-                  <p style={{ fontSize: 10, color: '#9ca3af', marginBottom: 3 }}>{item.label}</p>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: item.warn ? '#dc2626' : '#1a1a2e' }}>
-                    {item.value}
-                  </p>
+              ].map(item => (
+                <div key={item.label} style={{ background: C.bg, borderRadius: 8, padding: '8px 10px' }}>
+                  <p style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>{item.label}</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: item.warn ? C.danger : C.text }}>{item.value}</p>
                 </div>
               ))}
             </div>
           </div>
-
           {record.memo && (
-            <div style={{ marginTop: 12, backgroundColor: '#fffbeb', borderRadius: 8, padding: '10px 12px', border: '1px solid #fde68a' }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>📝 메모</p>
-              <p style={{ fontSize: 13, color: '#374151' }}>{record.memo}</p>
+            <div style={{ marginTop: 12, background: C.warningLight, borderRadius: 8, padding: '10px 12px', border: `1px solid #fde68a` }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: C.warning, marginBottom: 4 }}>📝 메모</p>
+              <p style={{ fontSize: 13, color: C.text }}>{record.memo}</p>
             </div>
           )}
         </div>
@@ -203,61 +167,29 @@ function RecordItem({ record, isOpen, onToggle }: {
   )
 }
 
-// ── 월 그룹 헤더 ───────────────────────────────────────────────
 function MonthGroup({ label, count, isOpen, onToggle, children }: {
-  label: string
-  count: number
-  isOpen: boolean
-  onToggle: () => void
-  children: React.ReactNode
+  label: string; count: number; isOpen: boolean; onToggle: () => void; children: React.ReactNode
 }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      {/* 월 헤더 */}
       <div
         onClick={onToggle}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 14px',
-          backgroundColor: isOpen ? '#1b508a' : '#e8f0f9',
+          padding: '10px 16px',
+          background: isOpen ? C.primary : C.primaryLight,
           borderRadius: isOpen ? '10px 10px 0 0' : 10,
-          cursor: 'pointer',
-          userSelect: 'none',
-          transition: 'background-color 0.15s',
-          marginBottom: isOpen ? 0 : 0,
+          cursor: 'pointer', userSelect: 'none', transition: 'background 0.15s',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: isOpen ? '#fff' : '#1b508a' }}>
-            {label}
-          </span>
-          <span style={{
-            fontSize: 11, fontWeight: 600,
-            backgroundColor: isOpen ? 'rgba(255,255,255,0.2)' : '#1b508a',
-            color: '#fff',
-            padding: '1px 8px', borderRadius: 20,
-          }}>
-            {count}건
-          </span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: isOpen ? '#fff' : C.primaryDark }}>{label}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, background: isOpen ? 'rgba(255,255,255,0.2)' : C.primary, color: '#fff', padding: '1px 8px', borderRadius: 20 }}>{count}건</span>
         </div>
-        <span style={{
-          fontSize: 11,
-          color: isOpen ? '#fff' : '#1b508a',
-          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: 'transform 0.2s',
-          display: 'inline-block',
-        }}>▼</span>
+        <span style={{ fontSize: 11, color: isOpen ? '#fff' : C.primaryDark, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▼</span>
       </div>
-
-      {/* 펼쳐진 기록 목록 */}
       {isOpen && (
-        <div style={{
-          border: '1px solid #dbeafe',
-          borderTop: 'none',
-          borderRadius: '0 0 10px 10px',
-          padding: '12px 10px 4px',
-          backgroundColor: '#f8faff',
-        }}>
+        <div style={{ border: `1px solid ${C.primaryLight}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '12px 10px 4px', background: '#faf8ff' }}>
           {children}
         </div>
       )}
@@ -265,19 +197,17 @@ function MonthGroup({ label, count, isOpen, onToggle, children }: {
   )
 }
 
-// ── 메인 페이지 ────────────────────────────────────────────────
 export default function RecordListPage() {
   const navigate = useNavigate()
-  const [records, setRecords]       = useState<DailyRecordResponse[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [openId, setOpenId]         = useState<number | null>(null)
+  const [records,    setRecords]    = useState<DailyRecordResponse[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [openId,     setOpenId]     = useState<number | null>(null)
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getMyRecords()
-      .then((data) => {
+      .then(data => {
         setRecords(data)
-        // 이번 달만 기본으로 펼침
         const thisMonth = new Date().toISOString().slice(0, 7)
         setOpenMonths(new Set([thisMonth]))
       })
@@ -286,157 +216,102 @@ export default function RecordListPage() {
   }, [])
 
   const today    = todayStr()
-  const todayRec = records.find((r) => r.record_date === today) ?? null
-  const pastRecs = records.filter((r) => r.record_date !== today)
+  const todayRec = records.find(r => r.record_date === today) ?? null
+  const pastRecs = records.filter(r => r.record_date !== today)
 
-  // 월별 그룹핑 (최신월 순)
   const monthGroups: { key: string; label: string; recs: DailyRecordResponse[] }[] = []
   const seen = new Set<string>()
   for (const rec of pastRecs) {
     const key = monthKey(rec.record_date)
-    if (!seen.has(key)) {
-      seen.add(key)
-      monthGroups.push({ key, label: formatMonthLabel(key), recs: [] })
-    }
-    monthGroups.find((g) => g.key === key)!.recs.push(rec)
+    if (!seen.has(key)) { seen.add(key); monthGroups.push({ key, label: formatMonth(key), recs: [] }) }
+    monthGroups.find(g => g.key === key)!.recs.push(rec)
   }
-
-  const toggleMonth = (key: string) => {
-    setOpenMonths((prev) => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      return next
-    })
-  }
-
-  const toggleRecord = (id: number) => setOpenId((prev) => (prev === id ? null : id))
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
+    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
       {/* 헤더 */}
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, height: 56,
-        backgroundColor: '#1b508a',
-        display: 'flex', alignItems: 'center', padding: '0 20px',
-        zIndex: 100,
-        boxShadow: '0 2px 8px rgba(27,80,138,0.25)',
+        background: C.primary, display: 'flex', alignItems: 'center',
+        padding: '0 20px', zIndex: 100, boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
       }}>
-        <span style={{ color: '#fff', fontWeight: 800, fontSize: 17, letterSpacing: '-0.3px', flex: 1 }}>CAPD</span>
-        <span style={{
-          color: '#fff', fontSize: 13, fontWeight: 600,
-          position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-        }}>나의 기록</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 9, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#fff', fontSize: 13, fontWeight: 900 }}>C</span>
+          </div>
+          <span style={{ color: '#fff', fontWeight: 900, fontSize: 17, letterSpacing: '-0.04em' }}>CAPD</span>
+        </div>
+        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+          나의 기록
+        </span>
       </header>
 
       <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', paddingTop: 60 }}>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>⏳</div>
-            <p style={{ color: '#9ca3af', fontSize: 14 }}>기록을 불러오는 중...</p>
+            <p style={{ color: C.textMuted, fontSize: 14 }}>⏳ 불러오는 중...</p>
           </div>
         ) : (
           <>
             {/* 오늘 카드 */}
             <div style={{
-              background: todayRec
-                ? '#fff'
-                : 'linear-gradient(135deg, #1b508a 0%, #2563eb 100%)',
-              borderRadius: 16,
-              padding: '20px 20px',
-              marginBottom: 24,
-              boxShadow: todayRec
-                ? '0 2px 12px rgba(0,0,0,0.08)'
-                : '0 4px 20px rgba(27,80,138,0.35)',
+              background: todayRec ? '#fff' : `linear-gradient(135deg, ${C.primary} 0%, #9333ea 100%)`,
+              borderRadius: 18, padding: '20px', marginBottom: 24,
+              boxShadow: todayRec ? '0 2px 12px rgba(0,0,0,0.08)' : '0 4px 20px rgba(124,58,237,0.35)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-              border: todayRec ? '1px solid #e5e7eb' : 'none',
+              border: todayRec ? `1px solid ${C.border}` : 'none',
             }}>
               <div style={{ flex: 1 }}>
-                <p style={{
-                  fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                  color: todayRec ? '#9ca3af' : 'rgba(255,255,255,0.7)',
-                  marginBottom: 5,
-                }}>TODAY</p>
-                <p style={{
-                  fontSize: 16, fontWeight: 700,
-                  color: todayRec ? '#1a1a2e' : '#fff',
-                  marginBottom: 6,
-                }}>
-                  {formatDateFull(today)}
-                </p>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: todayRec ? C.textLight : 'rgba(255,255,255,0.7)', marginBottom: 5 }}>TODAY</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: todayRec ? C.text : '#fff', marginBottom: 6 }}>{formatDateFull(today)}</p>
                 {todayRec ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <Badge status={todayRec.status} />
                     {todayRec.total_ultrafiltration != null && (
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>
-                        한외여과 {todayRec.total_ultrafiltration > 0 ? '+' : ''}{todayRec.total_ultrafiltration}g
+                      <span style={{ fontSize: 12, color: C.textMuted }}>
+                        제수량 {todayRec.total_ultrafiltration > 0 ? '+' : ''}{todayRec.total_ultrafiltration}g
                       </span>
                     )}
                   </div>
                 ) : (
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
-                    아직 오늘 기록이 없어요
-                  </p>
+                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>아직 오늘 기록이 없어요</p>
                 )}
               </div>
               <button
+                onClick={() => navigate('/patient/record')}
                 style={{
                   padding: '10px 18px',
-                  backgroundColor: todayRec ? '#1b508a' : '#fff',
-                  color: todayRec ? '#fff' : '#1b508a',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontSize: 13, fontWeight: 700,
-                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: todayRec ? C.primary : '#fff',
+                  color: todayRec ? '#fff' : C.primary,
+                  border: 'none', borderRadius: 10,
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
                   boxShadow: todayRec ? 'none' : '0 2px 6px rgba(0,0,0,0.12)',
-                  transition: 'opacity 0.15s',
+                  fontFamily: 'inherit',
                 }}
-                onClick={() => navigate('/patient/record')}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
               >
-                {!todayRec
-                  ? '지금 기록하기'
-                  : todayRec.status === 'draft'
-                  ? '이어서 기록하기'
-                  : '기록 보기'}
+                {!todayRec ? '지금 기록하기' : todayRec.status === 'draft' ? '이어서 기록하기' : '기록 보기'}
               </button>
             </div>
 
-            {/* 지난 기록 — 월별 그룹 */}
+            {/* 지난 기록 */}
             {monthGroups.length > 0 ? (
               <>
-                <p style={{
-                  fontSize: 11, fontWeight: 700, color: '#9ca3af',
-                  textTransform: 'uppercase', letterSpacing: '0.06em',
-                  marginBottom: 12,
-                }}>지난 기록</p>
-
+                <p style={{ fontSize: 11, fontWeight: 700, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>지난 기록</p>
                 {monthGroups.map(({ key, label, recs }) => (
-                  <MonthGroup
-                    key={key}
-                    label={label}
-                    count={recs.length}
-                    isOpen={openMonths.has(key)}
-                    onToggle={() => toggleMonth(key)}
-                  >
-                    {recs.map((rec) => (
-                      <RecordItem
-                        key={rec.id}
-                        record={rec}
-                        isOpen={openId === rec.id}
-                        onToggle={() => toggleRecord(rec.id)}
-                      />
+                  <MonthGroup key={key} label={label} count={recs.length}
+                    isOpen={openMonths.has(key)} onToggle={() => setOpenMonths(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })}>
+                    {recs.map(rec => (
+                      <RecordItem key={rec.id} record={rec} isOpen={openId === rec.id}
+                        onToggle={() => setOpenId(prev => prev === rec.id ? null : rec.id)} />
                     ))}
                   </MonthGroup>
                 ))}
               </>
-            ) : (
-              !loading && records.length <= (todayRec ? 1 : 0) && (
-                <div style={{ textAlign: 'center', paddingTop: 32 }}>
-                  <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
-                  <p style={{ color: '#9ca3af', fontSize: 13 }}>지난 기록이 없어요</p>
-                </div>
-              )
+            ) : !loading && records.length <= (todayRec ? 1 : 0) && (
+              <div style={{ textAlign: 'center', paddingTop: 32 }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
+                <p style={{ color: C.textMuted, fontSize: 13 }}>지난 기록이 없어요</p>
+              </div>
             )}
           </>
         )}

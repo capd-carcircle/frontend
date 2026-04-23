@@ -1,343 +1,364 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { btn, card, COLOR, contentBox, table, typography } from "../../styles/doctor";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-/* ── 타입 ─────────────────────────────────────────────── */
+const C = {
+  primary:      'var(--capd-primary)',
+  primaryLight: 'var(--capd-primary-light)',
+  primaryDark:  'var(--capd-primary-dark)',
+  bg:           'var(--capd-bg)',
+  border:       'var(--capd-border)',
+  text:         '#1a1a2e',
+  textMuted:    '#6b7280',
+  textLight:    '#9ca3af',
+  success:      '#16a34a',
+  successLight: '#f0fdf4',
+  warning:      '#d97706',
+  warningLight: '#fffbeb',
+  danger:       '#dc2626',
+  dangerLight:  '#fef2f2',
+}
+
+/* ── 타입 ── */
 interface ExchangeRecord {
-  session_number:         number;
-  exchange_time:          string | null;
-  drainage_volume:        number | null;
-  infusion_concentration: number | null;
-  infusion_weight:        number | null;
-  ultrafiltration:        number | null;
+  session_number:         number
+  exchange_time:          string | null
+  drainage_volume:        number | null
+  infusion_concentration: number | null
+  infusion_weight:        number | null
+  ultrafiltration:        number | null
 }
-
 interface SurveyResponse {
-  question_type: string;
-  question_text: string;
-  reason:        string | null;
-  choice:        string | null;
-  text_answer:   string | null;
-  answered:      boolean;
+  question_type: string
+  question_text: string
+  reason:        string | null
+  choice:        string | null
+  text_answer:   string | null
+  answered:      boolean
 }
-
-interface EMR {
-  S: string;
-  O: string;
-  A: string;
-  P: string;
-}
-
+interface EMR { S: string; O: string; A: string; P: string }
 interface RecordDetail {
-  record_id:             number;
-  patient_name:          string;
-  record_date:           string;
-  submitted_at:          string;
-  status:                string;
-  turbid_peritoneal:     boolean;
-  weight:                number | null;
-  blood_pressure:        string | null;
-  urine_count:           number | null;
-  total_ultrafiltration: number | null;
-  fasting_blood_glucose: number | null;
-  memo:                  string | null;
-  exchange_records:      ExchangeRecord[];
-  survey_responses:      SurveyResponse[];
-  ai_summary:            string;
-  emr:                   EMR;
+  record_id:             number
+  patient_name:          string
+  record_date:           string
+  submitted_at:          string
+  status:                string
+  turbid_peritoneal:     boolean
+  weight:                number | null
+  blood_pressure:        string | null
+  urine_count:           number | null
+  total_ultrafiltration: number | null
+  fasting_blood_glucose: number | null
+  memo:                  string | null
+  exchange_records:      ExchangeRecord[]
+  survey_responses:      SurveyResponse[]
+  ai_summary:            string
+  emr:                   EMR
 }
 
-/* ── 교환 기록 테이블 ─────────────────────────────────── */
+/* ── Card ── */
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden', ...style,
+    }}>
+      {children}
+    </div>
+  )
+}
+
+/* ── 교환 기록 테이블 ── */
 const EXCHANGE_ROWS = [
-  { label: "교환 시간",       key: "exchange_time"          },
-  { label: "배액량 (g)",      key: "drainage_volume"        },
-  { label: "투석액 농도 (%)", key: "infusion_concentration" },
-  { label: "주입액 (g)",      key: "infusion_weight"        },
-  { label: "한외여과 (g)",    key: "ultrafiltration"        },
-] as const;
+  { label: '시간',       key: 'exchange_time'          },
+  { label: '농도 (%)',   key: 'infusion_concentration' },
+  { label: '주입량 (g)', key: 'infusion_weight'        },
+  { label: '배액량 (g)', key: 'drainage_volume'        },
+] as const
 
 function ExchangeTable({ exchanges }: { exchanges: ExchangeRecord[] }) {
-  const bySession: Record<number, ExchangeRecord> = {};
-  exchanges.forEach((e) => { bySession[e.session_number] = e; });
+  const bySession: Record<number, ExchangeRecord> = {}
+  exchanges.forEach(e => { bySession[e.session_number] = e })
+  const thS: React.CSSProperties = {
+    padding: '10px 14px', textAlign: 'left' as const,
+    fontSize: 12, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap' as const,
+  }
+  const tdS: React.CSSProperties = { padding: '12px 14px', fontSize: 13, color: C.text }
 
   return (
-    <table style={table.root}>
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
-        <tr>
-          <th style={table.thDark}>구분</th>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <th key={n} style={table.thLight}>{n}회차</th>
-          ))}
+        <tr style={{ background: C.bg }}>
+          <th style={{ ...thS, width: 100 }}>항목</th>
+          {[1,2,3,4,5].map(n => <th key={n} style={thS}>{n}회차</th>)}
         </tr>
       </thead>
       <tbody>
-        {EXCHANGE_ROWS.map((row, ri) => (
-          <tr key={row.key}>
-            <td style={table.tdLabel}>{row.label}</td>
-            {[1, 2, 3, 4, 5].map((n) => {
-              const val = bySession[n]?.[row.key];
-              const display = val != null ? String(val) : "-";
-              return (
-                <td key={n} style={ri % 2 === 0 ? table.tdEven : table.tdOdd}>{display}</td>
-              );
+        {EXCHANGE_ROWS.map(row => (
+          <tr key={row.key} style={{ borderTop: `1px solid ${C.border}` }}>
+            <td style={{ ...tdS, fontSize: 11, fontWeight: 700, color: C.textMuted }}>{row.label}</td>
+            {[1,2,3,4,5].map(n => {
+              const val = bySession[n]?.[row.key]
+              return <td key={n} style={tdS}>{val != null ? String(val) : '—'}</td>
             })}
           </tr>
         ))}
+        {/* 제수량 행 (자동 계산) */}
+        <tr style={{ borderTop: `1.5px solid ${C.border}`, background: C.bg }}>
+          <td style={{ ...tdS, fontSize: 11, fontWeight: 700, color: C.textMuted }}>제수량 (g)</td>
+          {[1,2,3,4,5].map(n => {
+            const ex = bySession[n]
+            const uf = ex?.ultrafiltration ?? (
+              ex?.drainage_volume != null && ex?.infusion_weight != null
+                ? ex.drainage_volume - ex.infusion_weight
+                : null
+            )
+            return (
+              <td key={n} style={{
+                ...tdS, fontWeight: 700,
+                color: uf == null ? C.textMuted : uf < 0 ? C.danger : C.success,
+              }}>
+                {uf != null ? (uf > 0 ? `+${uf}` : String(uf)) : '—'}
+              </td>
+            )
+          })}
+        </tr>
       </tbody>
     </table>
-  );
+  )
 }
 
-/* ── 설문 응답 섹션 (미답변 포함) ────────────────────── */
-function SurveySection({ responses, type }: { responses: SurveyResponse[]; type: "common" | "ai" }) {
-  const filtered = responses.filter((r) => r.question_type === type);
-  if (filtered.length === 0) return <p style={{ fontSize: 12, color: COLOR.textMuted }}>질문 없음</p>;
-
-  const answeredCount = filtered.filter((r) => r.answered).length;
+/* ── 설문 응답 ── */
+function SurveySection({ responses, type }: { responses: SurveyResponse[]; type: 'common' | 'ai' }) {
+  const filtered = responses.filter(r => r.question_type === type)
+  if (filtered.length === 0)
+    return <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>질문 없음</p>
 
   return (
-    <>
-      {/* 답변 진행률 */}
-      <p style={{ fontSize: 10, color: COLOR.textMuted, marginBottom: 8 }}>
-        {answeredCount} / {filtered.length} 답변 완료
-      </p>
-
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {filtered.map((item, i) => (
         <div key={i} style={{
-          marginTop: i === 0 ? 0 : 10,
-          padding: "8px 10px",
-          borderRadius: 6,
-          backgroundColor: item.answered ? "#f9fafb" : "#fff8f0",
-          border: item.answered ? "1px solid #f0f0f0" : "1px solid #fed7aa",
+          background: C.bg, borderRadius: 10, padding: '12px 14px',
         }}>
-          {type === "ai" && item.reason && (
-            <p style={{ fontSize: 9, color: COLOR.primary, marginBottom: 2 }}>
-              💡 {item.reason}
-            </p>
-          )}
-          <p style={{ ...typography.qaQuestion, marginTop: 0 }}>
-            {item.question_text}
-          </p>
+          <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>{item.question_text}</div>
           {item.answered ? (
-            <p style={typography.qaAnswer}>
-              {item.choice === "yes" ? "예" : item.choice === "no" ? "아니오" : "—"}
-              {item.text_answer ? ` — ${item.text_answer}` : ""}
-            </p>
+            <span style={{
+              background: item.choice === 'no' ? C.successLight : C.primaryLight,
+              color: item.choice === 'no' ? C.success : C.primaryDark,
+              borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600,
+            }}>
+              {item.choice === 'yes' ? '예' : item.choice === 'no' ? '아니오' : '—'}
+              {item.text_answer ? ` — ${item.text_answer}` : ''}
+            </span>
           ) : (
-            <p style={{ fontSize: 11, color: "#f97316", fontWeight: 600, marginTop: 4 }}>
-              ⏳ 미답변
-            </p>
+            <span style={{ fontSize: 12, color: C.warning, fontWeight: 600 }}>⏳ 미답변</span>
           )}
         </div>
       ))}
-    </>
-  );
+    </div>
+  )
 }
 
-/* ── 메인 ─────────────────────────────────────────────── */
+/* ── 메인 ── */
 export default function RecordDetailPage() {
-  const navigate  = useNavigate();
-  const location  = useLocation();
-  const { recordId, patientName } = (location.state ?? {}) as { recordId?: number; patientName?: string };
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { recordId, patientName } = (location.state ?? {}) as { recordId?: number; patientName?: string }
 
-  const [detail, setDetail]   = useState<RecordDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
-  const [approving, setApproving] = useState(false);
-  const [reverting, setReverting] = useState(false);
+  const [detail,    setDetail]    = useState<RecordDetail | null>(null)
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState('')
+  const [approving, setApproving] = useState(false)
+  const [reverting, setReverting] = useState(false)
 
   useEffect(() => {
-    if (!recordId) return;
-    const token = localStorage.getItem("access_token");
-    if (!token) { navigate("/login"); return; }
-
+    if (!recordId) return
+    const token = localStorage.getItem('access_token')
+    if (!token) { navigate('/login'); return }
     fetch(`${API}/api/v1/records/${recordId}/detail`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => {
-        if (res.status === 401) { localStorage.clear(); navigate("/login"); return null; }
-        if (!res.ok) throw new Error("서버 오류");
-        return res.json();
+      .then(res => {
+        if (res.status === 401) { localStorage.clear(); navigate('/login'); return null }
+        if (!res.ok) throw new Error('서버 오류')
+        return res.json()
       })
-      .then((json) => { if (json) setDetail(json); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [recordId, navigate]);
+      .then(json => { if (json) setDetail(json) })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [recordId, navigate])
 
   const handleApprove = async () => {
-    if (!recordId || approving) return;
-    const token = localStorage.getItem("access_token");
-    setApproving(true);
+    if (!recordId || approving) return
+    const token = localStorage.getItem('access_token')
+    setApproving(true)
     try {
       const res = await fetch(`${API}/api/v1/records/${recordId}/approve`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.detail ?? "승인 실패");
-        return;
-      }
-      setDetail((prev) => prev ? { ...prev, status: "reviewed" } : prev);
-    } catch {
-      alert("승인 중 오류가 발생했습니다.");
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  const handleRevert = async () => {
-    if (!recordId || reverting) return;
-    if (!window.confirm("승인을 취소하고 검토 중 상태로 되돌릴까요?")) return;
-    const token = localStorage.getItem("access_token");
-    setReverting(true);
-    try {
-      const res = await fetch(`${API}/api/v1/records/${recordId}/revert`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.detail ?? "되돌리기 실패");
-        return;
-      }
-      setDetail((prev) => prev ? { ...prev, status: "submitted" } : prev);
-    } catch {
-      alert("되돌리기 중 오류가 발생했습니다.");
-    } finally {
-      setReverting(false);
-    }
-  };
-
-  /* 직접 URL 접근 (recordId 없음) */
-  if (!recordId) {
-    return (
-      <main style={{ padding: 24 }}>
-        <p>기록을 찾을 수 없습니다.</p>
-        <button onClick={() => navigate("/doctor")} style={btn.ghost}>← 대시보드로</button>
-      </main>
-    );
+        method: 'PATCH', headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) { const err = await res.json(); alert(err.detail ?? '승인 실패'); return }
+      setDetail(prev => prev ? { ...prev, status: 'reviewed' } : prev)
+    } catch { alert('승인 중 오류가 발생했습니다.') }
+    finally { setApproving(false) }
   }
 
-  if (loading) return <div style={{ padding: 24, color: COLOR.textMuted, fontSize: 13 }}>불러오는 중...</div>;
-  if (error)   return <div style={{ padding: 24, color: COLOR.danger,    fontSize: 13 }}>오류: {error}</div>;
-  if (!detail) return null;
+  const handleRevert = async () => {
+    if (!recordId || reverting) return
+    if (!window.confirm('승인을 취소하고 검토 중 상태로 되돌릴까요?')) return
+    const token = localStorage.getItem('access_token')
+    setReverting(true)
+    try {
+      const res = await fetch(`${API}/api/v1/records/${recordId}/revert`, {
+        method: 'PATCH', headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) { const err = await res.json(); alert(err.detail ?? '되돌리기 실패'); return }
+      setDetail(prev => prev ? { ...prev, status: 'submitted' } : prev)
+    } catch { alert('되돌리기 중 오류가 발생했습니다.') }
+    finally { setReverting(false) }
+  }
 
-  const isApproved = detail.status === "reviewed";
-  const submitTime = new Date(detail.submitted_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  if (!recordId) return (
+    <main style={{ padding: 32 }}>
+      <p style={{ color: C.textMuted }}>기록을 찾을 수 없습니다.</p>
+      <button onClick={() => navigate('/doctor')} style={{ marginTop: 12, padding: '8px 16px', border: `1px solid ${C.border}`, borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, color: C.textMuted }}>← 대시보드로</button>
+    </main>
+  )
+
+  if (loading) return <div style={{ padding: 32, color: C.textMuted, fontSize: 13 }}>불러오는 중...</div>
+  if (error)   return <div style={{ padding: 32, color: C.danger,    fontSize: 13 }}>오류: {error}</div>
+  if (!detail) return null
+
+  const isApproved = detail.status === 'reviewed'
+  const submitTime = new Date(detail.submitted_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+
+  const vitals = [
+    ['복막액 혼탁', detail.turbid_peritoneal ? '있음 ⚠️' : '없음', detail.turbid_peritoneal ? 'danger' : 'success'],
+    ['체중',        detail.weight != null ? `${detail.weight} kg` : '—', null],
+    ['혈압',        detail.blood_pressure ?? '—', detail.blood_pressure?.startsWith('14') ? 'danger' : null],
+    ['소변 횟수',   detail.urine_count != null ? `${detail.urine_count}회` : '—', null],
+    ['공복혈당',    detail.fasting_blood_glucose != null ? `${detail.fasting_blood_glucose} mg/dL` : '—', null],
+    ['총 제수량',   detail.total_ultrafiltration != null ? `${detail.total_ultrafiltration} g` : '—',
+      detail.total_ultrafiltration != null && detail.total_ultrafiltration < 0 ? 'danger' : null],
+  ] as const
 
   return (
-    <>
-      <style>{`
-        .back-btn:hover    { background-color: #c8c8c8 !important; }
-        .approve-btn:hover { background-color: ${COLOR.successDark} !important; }
-      `}</style>
-
-      <main style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-
-        {/* 헤더 */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <h1 style={typography.pageTitle}>
-              {detail.patient_name} 환자 — {detail.record_date} {submitTime}
-            </h1>
-            <button className="back-btn" style={btn.ghost} onClick={() => navigate(-1)}>← 목록</button>
-          </div>
-          {!isApproved ? (
-            <button
-              className="approve-btn"
-              style={btn.success}
-              onClick={handleApprove}
-              disabled={approving}
-            >
-              {approving ? "처리 중..." : "✅ 기록 승인"}
-            </button>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ color: COLOR.success, fontWeight: 700, fontSize: 13 }}>✅ 승인 완료</span>
+    <main style={{ padding: 32 }}>
+      {/* 헤더 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{ padding: '7px 14px', border: `1px solid ${C.border}`, borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, color: C.textMuted, fontFamily: 'inherit' }}
+        >
+          ← 목록
+        </button>
+        <div style={{ flex: 1 }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: C.text, letterSpacing: '-0.03em' }}>
+            {detail.patient_name} 환자 — {detail.record_date}
+          </h1>
+          <p style={{ margin: 0, fontSize: 12, color: C.textMuted, marginTop: 2 }}>제출 시간: {submitTime}</p>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          {isApproved ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                background: C.successLight, color: C.success,
+                borderRadius: 8, padding: '6px 14px', fontSize: 13, fontWeight: 700,
+              }}>✅ 승인 완료</span>
               <button
-                className="revert-btn"
-                style={{
-                  padding: "6px 14px",
-                  backgroundColor: "#fff",
-                  color: COLOR.textMuted,
-                  border: `1px solid ${COLOR.textMuted}`,
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-                onClick={handleRevert}
-                disabled={reverting}
+                onClick={handleRevert} disabled={reverting}
+                style={{ padding: '6px 14px', border: `1px solid ${C.border}`, borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 12, color: C.textMuted, fontFamily: 'inherit' }}
               >
-                {reverting ? "처리 중..." : "↩ 검토 중으로 되돌리기"}
+                {reverting ? '처리 중...' : '↩ 되돌리기'}
               </button>
             </div>
+          ) : (
+            <button
+              onClick={handleApprove} disabled={approving}
+              style={{ padding: '10px 20px', background: C.success, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: approving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: approving ? 0.7 : 1 }}
+            >
+              {approving ? '처리 중...' : '✅ 기록 승인'}
+            </button>
           )}
         </div>
+      </div>
 
-        {/* CAPD 투석 기록 테이블 */}
-        <div style={card.base}>
-          <p style={typography.cardTitle}>CAPD 투석 기록</p>
-          <ExchangeTable exchanges={detail.exchange_records} />
-
-          {/* 기타 바이탈 */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px 16px", marginTop: 12 }}>
-            {[
-              { label: "복막액 혼탁",   value: detail.turbid_peritoneal ? "있음 ⚠️" : "없음" },
-              { label: "체중 (kg)",     value: detail.weight != null ? `${detail.weight} kg` : "-" },
-              { label: "혈압 (mmHg)",   value: detail.blood_pressure ?? "-" },
-              { label: "소변 횟수",     value: detail.urine_count != null ? `${detail.urine_count}회` : "-" },
-              { label: "총 한외여과량", value: detail.total_ultrafiltration != null ? `${detail.total_ultrafiltration} g` : "-" },
-              { label: "공복 혈당",     value: detail.fasting_blood_glucose != null ? `${detail.fasting_blood_glucose} mg/dL` : "-" },
-            ].map((item) => (
-              <div key={item.label}>
-                <p style={{ fontSize: 9, color: COLOR.textMuted, margin: 0 }}>{item.label}</p>
-                <p style={{ fontSize: 12, fontWeight: 600, color: COLOR.text, margin: "2px 0 0" }}>{item.value}</p>
-              </div>
-            ))}
+      {/* 2열 레이아웃: 투석 기록 + 바이탈 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 20 }}>
+        {/* 투석 기록 테이블 */}
+        <Card>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, fontWeight: 800, fontSize: 14, color: C.text }}>
+            CAPD 투석 기록
           </div>
-
+          <ExchangeTable exchanges={detail.exchange_records} />
           {detail.memo && (
-            <div style={{ marginTop: 10 }}>
-              <p style={{ fontSize: 9, color: COLOR.textMuted, margin: 0 }}>메모</p>
-              <p style={{ fontSize: 12, color: COLOR.text, margin: "2px 0 0" }}>{detail.memo}</p>
+            <div style={{ padding: '12px 18px', borderTop: `1px solid ${C.border}`, background: C.bg }}>
+              <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>메모: </span>
+              <span style={{ fontSize: 13, color: C.text }}>{detail.memo}</span>
             </div>
           )}
+        </Card>
+
+        {/* 바이탈 사이드 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {vitals.map(([label, value, col]) => (
+            <Card key={label} style={{ padding: '12px 16px' }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: col ? (C as any)[col] : C.text }}>{value}</div>
+            </Card>
+          ))}
         </div>
+      </div>
+
+      {/* EMR + AI 요약 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        {/* EMR */}
+        <Card style={{ padding: 20 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 14 }}>📄 EMR 형식 요약</div>
+          {(['S','O','A','P'] as const).map(k => (
+            <div key={k} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: C.primary, width: 16, flexShrink: 0 }}>{k}:</div>
+              <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{detail.emr[k]}</div>
+            </div>
+          ))}
+        </Card>
 
         {/* AI 요약 */}
-        <div style={card.base}>
-          <p style={typography.cardTitle}>🤖 AI 일일 요약</p>
-          <div style={contentBox.ai}>{detail.ai_summary}</div>
-        </div>
-
-        {/* EMR 형식 */}
-        <div style={card.base}>
-          <p style={typography.cardTitle}>📄 EMR 형식 요약</p>
-          <div style={contentBox.emr}>
-            <span>S: {detail.emr.S}</span>
-            <span>O: {detail.emr.O}</span>
-            <span>A: {detail.emr.A}</span>
-            <span>P: {detail.emr.P}</span>
+        <Card style={{ background: C.primaryLight, border: `1px solid ${C.primaryDark}20`, padding: 20 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: C.primaryDark, marginBottom: 12 }}>
+            ✦ AI 요약 ({detail.patient_name})
           </div>
-        </div>
+          <div style={{ fontSize: 13, color: C.primaryDark, lineHeight: 1.8 }}>{detail.ai_summary}</div>
+        </Card>
+      </div>
 
-        {/* 설문 응답 (2열) */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div style={card.base}>
-            <p style={typography.cardTitle}>💬 공통 질문 응답</p>
-            <SurveySection responses={detail.survey_responses} type="common" />
-          </div>
-          <div style={card.base}>
-            <p style={typography.cardTitle}>🤖 AI 맞춤 질문 응답</p>
-            <SurveySection responses={detail.survey_responses} type="ai" />
-          </div>
+      {/* 공통 질문 응답 */}
+      <Card style={{ padding: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 14 }}>💬 공통 질문 응답</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {detail.survey_responses
+            .filter(r => r.question_type === 'common')
+            .map((item, i) => (
+              <div key={i} style={{ background: C.bg, borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>{item.question_text}</div>
+                {item.answered ? (
+                  <span style={{
+                    background: item.choice === 'no' ? C.successLight : C.dangerLight,
+                    color: item.choice === 'no' ? C.success : C.danger,
+                    borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600,
+                  }}>
+                    {item.choice === 'yes' ? '예' : item.choice === 'no' ? '아니오' : '—'}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 12, color: C.warning, fontWeight: 600 }}>⏳ 미답변</span>
+                )}
+              </div>
+            ))}
         </div>
-
-      </main>
-    </>
-  );
+        {detail.survey_responses.filter(r => r.question_type === 'common').length === 0 && (
+          <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>설문 응답이 없습니다.</p>
+        )}
+      </Card>
+    </main>
+  )
 }

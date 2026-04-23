@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<string, string> = {
   rejected:  '반려',
 }
 const STATUS_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
-  draft:     { bg: '#f3f4f6', text: '#4b5563', dot: '#9ca3af' },
+  draft:     { bg: '#ede9fe', text: '#5b21b6', dot: '#7c3aed' },
   submitted: { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' },
   reviewed:  { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e' },
   rejected:  { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
@@ -154,10 +154,10 @@ export default function RecordSubmitPage() {
   const Header = () => (
     <header style={{
       position: 'fixed', top: 0, left: 0, right: 0, height: 56,
-      backgroundColor: '#1b508a',
+      backgroundColor: 'var(--capd-primary)',
       display: 'flex', alignItems: 'center', padding: '0 20px',
       zIndex: 100,
-      boxShadow: '0 2px 8px rgba(27,80,138,0.25)',
+      boxShadow: '0 2px 12px rgba(124,58,237,0.25)',
     }}>
       <button
         style={{
@@ -178,7 +178,7 @@ export default function RecordSubmitPage() {
   /* ── 로딩 중 ────────────────────────────────────────────────── */
   if (checkLoading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--capd-bg)' }}>
         <Header />
         <main style={{ maxWidth: 680, margin: '0 auto', padding: '80px 16px 40px', textAlign: 'center' }}>
           <div style={{ paddingTop: 60 }}>
@@ -193,7 +193,7 @@ export default function RecordSubmitPage() {
   const isSubmitted = todayRecord && todayRecord.status !== 'draft'
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--capd-bg)' }}>
       <Header />
 
       <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
@@ -202,8 +202,8 @@ export default function RecordSubmitPage() {
         <div style={{
           backgroundColor: '#fff', borderRadius: 14,
           padding: '16px 14px', marginBottom: 16,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-          border: '1px solid #e5e7eb',
+          boxShadow: '0 2px 8px rgba(124,58,237,0.08)',
+          border: '1px solid var(--capd-border)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <div>
@@ -254,10 +254,10 @@ export default function RecordSubmitPage() {
             <button
               style={{
                 width: '100%', padding: '13px 18px',
-                backgroundColor: '#1b508a', color: '#fff',
-                border: 'none', borderRadius: 10,
+                backgroundColor: 'var(--capd-primary)', color: '#fff',
+                border: 'none', borderRadius: 11,
                 fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                transition: 'opacity 0.15s',
+                transition: 'opacity 0.15s', fontFamily: 'inherit',
               }}
               onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
               onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
