@@ -10,6 +10,7 @@ import RecordDetailPage from "../pages/doctor/RecordDetailPage";
 import PatientRecordsPage from "../pages/doctor/PatientRecordsPage";
 import CommonQPage from "../pages/doctor/CommonQPage";
 import AIReviewPage from "../pages/doctor/AIReviewPage";
+import PatientApprovalPage from "../pages/doctor/PatientApprovalPage";
 import RecordListPage from "../pages/patient/RecordListPage";
 import RecordSubmitPage from "../pages/patient/RecordSubmitPage";
 import SurveyPage from "../pages/patient/SurveyPage";
@@ -65,6 +66,10 @@ const router = createBrowserRouter([
   {
     path: "/doctor/patients/:patientId",
     element: <PrivateRoute><DoctorLayout><PatientRecordsPage /></DoctorLayout></PrivateRoute>,
+  },
+  {
+    path: "/doctor/approve",
+    element: <PrivateRoute><DoctorLayout><PatientApprovalPage /></DoctorLayout></PrivateRoute>,
   },
   {
     path: "/doctor/common-questions",
