@@ -10,6 +10,18 @@ interface ChatMessage {
   isUrgent?: boolean
 }
 
+// ── JSON 원문에서 content만 추출 (AI 파싱 실패 방어) ─────────
+function parseContent(text: string): string {
+  if (!text.trim().startsWith('{')) return text
+  try {
+    const parsed = JSON.parse(text)
+    return parsed.content ?? text
+  } catch {
+    const match = text.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|$)/)
+    return match ? match[1].replace(/\\"/g, '"') : text
+  }
+}
+
 // ── 채팅 메시지 버블 ───────────────────────────────────────
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isAI = msg.role === 'ai'
@@ -49,7 +61,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         {msg.isUrgent && (
           <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>🚨 긴급 안내</div>
         )}
-        {msg.content}
+        {parseContent(msg.content)}
       </div>
 
       {!isAI && (
