@@ -333,7 +333,7 @@ export default function RecordDetailPage() {
       </div>
 
       {/* 공통 질문 응답 */}
-      <Card style={{ padding: 20 }}>
+      <Card style={{ padding: 20, marginBottom: 20 }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 14 }}>💬 공통 질문 응답</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
           {detail.survey_responses
@@ -359,6 +359,46 @@ export default function RecordDetailPage() {
           <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>설문 응답이 없습니다.</p>
         )}
       </Card>
+
+      {/* AI 맞춤 질문 응답 */}
+      {detail.survey_responses.filter(r => r.question_type === 'ai').length > 0 && (
+        <Card style={{ padding: 20 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: C.primaryDark, marginBottom: 14 }}>✦ AI 맞춤 질문 응답</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {detail.survey_responses
+              .filter(r => r.question_type === 'ai')
+              .map((item, i) => {
+                // 답변 텍스트: yes_no는 choice, 나머지는 text_answer
+                const answerText = item.choice === 'yes' ? '예'
+                  : item.choice === 'no' ? '아니오'
+                  : item.text_answer || null
+                const isYes = item.choice === 'yes' || (item.text_answer && item.choice !== 'no')
+                return (
+                  <div key={i} style={{ background: C.bg, borderRadius: 10, padding: '12px 14px' }}>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 4 }}>{item.question_text}</div>
+                    {item.reason && (
+                      <div style={{ fontSize: 11, color: C.primary, marginBottom: 6, fontStyle: 'italic' }}>
+                        💡 {item.reason}
+                      </div>
+                    )}
+                    {item.answered ? (
+                      <span style={{
+                        background: isYes ? C.primaryLight : C.successLight,
+                        color: isYes ? C.primaryDark : C.success,
+                        borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600,
+                        display: 'inline-block', wordBreak: 'break-word' as const,
+                      }}>
+                        {answerText ?? '—'}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 12, color: C.warning, fontWeight: 600 }}>⏳ 미답변</span>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </Card>
+      )}
     </main>
   )
 }
