@@ -3,7 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import client from '../../api/client'
 
 // ── 타입 ──────────────────────────────────────────────────
-interface QuestionWithAnswer {
+
+type QuestionType = 'yes_no' | 'single_select' | 'multi_select' | 'short_text'
+
+interface CommonQuestion {
   question_id: number
   question_text: string
   type: 'common'
@@ -12,102 +15,219 @@ interface QuestionWithAnswer {
   answered: boolean
 }
 
-interface Answer {
+interface AIQuestion {
+  question_id: number
+  question_text: string
+  question_type: QuestionType
+  options: string[] | null
+  reason: string | null
+  type: 'ai'
   choice: 'yes' | 'no' | null
-  text: string
+  text_answer: string | null
+  answered: boolean
 }
 
-// ── 단일 질문 컴포넌트 ────────────────────────────────────
-function QuestionItem({ question, answer, onChange }: {
-  question: QuestionWithAnswer
+interface Answer {
+  choice: 'yes' | 'no' | null   // yes_no 전용
+  selected: string[]             // single_select / multi_select
+  text: string                   // short_text 및 보조 텍스트
+}
+
+const emptyAnswer = (): Answer => ({ choice: null, selected: [], text: '' })
+
+// ── 공통 질문 컴포넌트 ────────────────────────────────────
+function CommonQuestionItem({ question, answer, onChange }: {
+  question: CommonQuestion
   answer: Answer
-  onChange: (id: number, choice: 'yes' | 'no' | null, text: string) => void
+  onChange: (id: number, type: 'common', patch: Partial<Answer>) => void
 }) {
   const answered = answer.choice !== null || answer.text.trim() !== ''
-
   return (
     <div style={{
-      padding: '16px',
-      borderRadius: 10,
-      backgroundColor: '#f9fafb',
-      border: '1px solid #e5e7eb',
-      marginBottom: 10,
-      position: 'relative',
+      padding: '16px', borderRadius: 10,
+      backgroundColor: '#f9fafb', border: '1px solid #e5e7eb',
+      marginBottom: 10, position: 'relative',
     }}>
-      {answered && (
-        <span style={{
-          position: 'absolute', top: 12, right: 12,
-          fontSize: 10, fontWeight: 700,
-          color: '#16a34a', backgroundColor: '#f0fdf4',
-          border: '1px solid #bbf7d0',
-          padding: '2px 8px', borderRadius: 20,
-        }}>✓ 답변 완료</span>
-      )}
-
-      <p style={{
-        fontSize: 14, color: '#1a1a2e', fontWeight: 500,
-        marginBottom: 12, lineHeight: 1.5,
-        paddingRight: answered ? 90 : 0,
-      }}>
-        <span style={{ color: 'var(--capd-primary)', fontWeight: 700, marginRight: 4 }}>Q.</span>
-        {question.question_text}
-      </p>
-
+      {answered && <AnsweredBadge />}
+      <QuestionLabel text={question.question_text} hasCheck={answered} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          style={{
-            height: 34, minWidth: 64, padding: '0 14px',
-            borderRadius: 8, border: 'none', cursor: 'pointer',
-            fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
-            backgroundColor: answer.choice === 'yes' ? 'var(--capd-primary)' : '#e5e7eb',
-            color: answer.choice === 'yes' ? '#fff' : '#374151',
-            boxShadow: answer.choice === 'yes' ? '0 2px 6px rgba(123,107,181,0.3)' : 'none',
-          }}
-          onClick={() => onChange(question.question_id, 'yes', answer.text)}
-        >
-          예
-        </button>
-
-        <button
-          type="button"
-          style={{
-            height: 34, minWidth: 80, padding: '0 14px',
-            borderRadius: 8, border: 'none', cursor: 'pointer',
-            fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
-            backgroundColor: answer.choice === 'no' ? 'var(--capd-primary)' : '#e5e7eb',
-            color: answer.choice === 'no' ? '#fff' : '#374151',
-            boxShadow: answer.choice === 'no' ? '0 2px 6px rgba(123,107,181,0.3)' : 'none',
-          }}
-          onClick={() => onChange(question.question_id, 'no', answer.text)}
-        >
-          아니오
-        </button>
-
+        <YesNoButtons
+          value={answer.choice}
+          onChange={(v) => onChange(question.question_id, 'common', { choice: v })}
+        />
         <input
           type="text"
           placeholder="직접 입력 (선택사항)"
-          style={{
-            flex: 1, minWidth: 120, height: 34,
-            borderRadius: 8, border: '1px solid #e5e7eb',
-            backgroundColor: '#fff', padding: '0 12px',
-            fontSize: 13, color: '#1a1a2e', outline: 'none',
-            transition: 'border-color 0.15s, box-shadow 0.15s',
-          }}
+          style={textInputStyle}
           value={answer.text}
-          onChange={e => onChange(question.question_id, answer.choice, e.target.value)}
-          onFocus={e => {
-            e.target.style.borderColor = 'var(--capd-primary)'
-            e.target.style.boxShadow   = '0 0 0 3px rgba(123,107,181,0.10)'
-          }}
-          onBlur={e => {
-            e.target.style.borderColor = '#e5e7eb'
-            e.target.style.boxShadow   = 'none'
-          }}
+          onChange={e => onChange(question.question_id, 'common', { text: e.target.value })}
+          onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
+          onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
         />
       </div>
     </div>
   )
+}
+
+// ── AI 질문 컴포넌트 (타입별 렌더) ───────────────────────
+function AIQuestionItem({ question, answer, onChange }: {
+  question: AIQuestion
+  answer: Answer
+  onChange: (id: number, type: 'ai', patch: Partial<Answer>) => void
+}) {
+  const qType = question.question_type ?? 'yes_no'
+  const answered =
+    (qType === 'yes_no' && answer.choice !== null) ||
+    (qType === 'single_select' && answer.selected.length > 0) ||
+    (qType === 'multi_select' && answer.selected.length > 0) ||
+    (qType === 'short_text' && answer.text.trim() !== '')
+
+  return (
+    <div style={{
+      padding: '16px', borderRadius: 10,
+      backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe',
+      marginBottom: 10, position: 'relative',
+    }}>
+      {answered && <AnsweredBadge />}
+      <span style={{
+        fontSize: 10, fontWeight: 700, color: '#7c3aed',
+        backgroundColor: '#ede9fe', border: '1px solid #ddd6fe',
+        padding: '2px 7px', borderRadius: 20, marginBottom: 6,
+        display: 'inline-block',
+      }}>🤖 AI 추천</span>
+      <QuestionLabel text={question.question_text} hasCheck={answered} />
+
+      {qType === 'yes_no' && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <YesNoButtons
+            value={answer.choice}
+            onChange={(v) => onChange(question.question_id, 'ai', { choice: v })}
+          />
+          <input
+            type="text"
+            placeholder="직접 입력 (선택사항)"
+            style={textInputStyle}
+            value={answer.text}
+            onChange={e => onChange(question.question_id, 'ai', { text: e.target.value })}
+            onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
+            onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
+          />
+        </div>
+      )}
+
+      {qType === 'single_select' && question.options && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {question.options.map((opt) => (
+            <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name={`single_${question.question_id}`}
+                checked={answer.selected[0] === opt}
+                onChange={() => onChange(question.question_id, 'ai', { selected: [opt] })}
+                style={{ accentColor: 'var(--capd-primary)', width: 16, height: 16 }}
+              />
+              <span style={{ fontSize: 14, color: '#1a1a2e' }}>{opt}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {qType === 'multi_select' && question.options && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {question.options.map((opt) => {
+            const checked = answer.selected.includes(opt)
+            return (
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    const next = checked
+                      ? answer.selected.filter(s => s !== opt)
+                      : [...answer.selected, opt]
+                    onChange(question.question_id, 'ai', { selected: next })
+                  }}
+                  style={{ accentColor: 'var(--capd-primary)', width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: 14, color: '#1a1a2e' }}>{opt}</span>
+              </label>
+            )
+          })}
+        </div>
+      )}
+
+      {qType === 'short_text' && (
+        <input
+          type="text"
+          placeholder="답변을 입력해주세요"
+          style={{ ...textInputStyle, width: '100%', flex: 'unset', minWidth: 'unset' }}
+          value={answer.text}
+          onChange={e => onChange(question.question_id, 'ai', { text: e.target.value })}
+          onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
+          onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── 공통 하위 컴포넌트 ────────────────────────────────────
+
+function AnsweredBadge() {
+  return (
+    <span style={{
+      position: 'absolute', top: 12, right: 12,
+      fontSize: 10, fontWeight: 700, color: '#16a34a',
+      backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0',
+      padding: '2px 8px', borderRadius: 20,
+    }}>✓ 답변 완료</span>
+  )
+}
+
+function QuestionLabel({ text, hasCheck }: { text: string; hasCheck: boolean }) {
+  return (
+    <p style={{
+      fontSize: 14, color: '#1a1a2e', fontWeight: 500,
+      marginBottom: 12, lineHeight: 1.5,
+      paddingRight: hasCheck ? 90 : 0,
+    }}>
+      <span style={{ color: 'var(--capd-primary)', fontWeight: 700, marginRight: 4 }}>Q.</span>
+      {text}
+    </p>
+  )
+}
+
+function YesNoButtons({ value, onChange }: {
+  value: 'yes' | 'no' | null
+  onChange: (v: 'yes' | 'no') => void
+}) {
+  return (
+    <>
+      {(['yes', 'no'] as const).map(v => (
+        <button
+          key={v}
+          type="button"
+          style={{
+            height: 34, minWidth: v === 'yes' ? 64 : 80, padding: '0 14px',
+            borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
+            backgroundColor: value === v ? 'var(--capd-primary)' : '#e5e7eb',
+            color: value === v ? '#fff' : '#374151',
+            boxShadow: value === v ? '0 2px 6px rgba(123,107,181,0.3)' : 'none',
+          }}
+          onClick={() => onChange(v)}
+        >{v === 'yes' ? '예' : '아니오'}</button>
+      ))}
+    </>
+  )
+}
+
+const textInputStyle: React.CSSProperties = {
+  flex: 1, minWidth: 120, height: 34,
+  borderRadius: 8, border: '1px solid #e5e7eb',
+  backgroundColor: '#fff', padding: '0 12px',
+  fontSize: 13, color: '#1a1a2e', outline: 'none',
+  transition: 'border-color 0.15s, box-shadow 0.15s',
 }
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────
@@ -116,31 +236,53 @@ export default function SurveyPage() {
   const location = useLocation()
   const recordId: number | undefined = (location.state as { recordId?: number })?.recordId
 
-  const [commonQs, setCommonQs] = useState<QuestionWithAnswer[]>([])
-  const [answers, setAnswers]   = useState<Record<number, Answer>>({})
-  const [loading, setLoading]   = useState(true)
-  const [saving, setSaving]     = useState(false)
-  const [saveMsg, setSaveMsg]   = useState<'success' | 'error' | null>(null)
+  const [commonQs,   setCommonQs]   = useState<CommonQuestion[]>([])
+  const [aiQs,       setAiQs]       = useState<AIQuestion[]>([])
+  const [answers,    setAnswers]     = useState<Record<string, Answer>>({})
+  const [loading,    setLoading]     = useState(true)
+  const [aiPending,  setAiPending]   = useState(false)
+  const [saving,     setSaving]      = useState(false)
+  const [completing, setCompleting]  = useState(false)
+  const [saveMsg,    setSaveMsg]     = useState<'success' | 'error' | null>(null)
+  const [completeError, setCompleteError] = useState('')
 
-  // ── 공통 질문 + 기존 답변 로드 ─────────────────────────
+  // ── 질문 + 기존 답변 로드 ───────────────────────────────
   const loadAll = useCallback(async () => {
     if (!recordId) return
     try {
       const res = await client.get(`/api/v1/surveys/my-responses/${recordId}`)
       const data = res.data
 
-      const cqs: QuestionWithAnswer[] = data.common_questions.map((q: QuestionWithAnswer) => ({
+      const cqs: CommonQuestion[] = (data.common_questions ?? []).map((q: CommonQuestion) => ({
         ...q, type: 'common' as const,
       }))
+      const aqs: AIQuestion[] = (data.ai_questions ?? []).map((q: AIQuestion) => ({
+        ...q, type: 'ai' as const,
+      }))
+
       setCommonQs(cqs)
+      setAiQs(aqs)
+      setAiPending(data.ai_pending ?? false)
 
       setAnswers(prev => {
         const next = { ...prev }
         cqs.forEach(q => {
-          if (!(q.question_id in next)) {
-            next[q.question_id] = {
-              choice: q.choice ?? null,
-              text:   q.text_answer ?? '',
+          const key = `common_${q.question_id}`
+          if (!(key in next)) {
+            next[key] = { choice: q.choice ?? null, selected: [], text: q.text_answer ?? '' }
+          }
+        })
+        aqs.forEach(q => {
+          const key = `ai_${q.question_id}`
+          if (!(key in next)) {
+            const qType = q.question_type ?? 'yes_no'
+            const isSelect = qType === 'single_select' || qType === 'multi_select'
+            next[key] = {
+              choice:   qType === 'yes_no' ? (q.choice ?? null) : null,
+              selected: isSelect && q.text_answer
+                ? q.text_answer.split(',').map(s => s.trim()).filter(Boolean)
+                : [],
+              text: qType === 'short_text' ? (q.text_answer ?? '') : (qType === 'yes_no' ? '' : ''),
             }
           }
         })
@@ -156,57 +298,138 @@ export default function SurveyPage() {
     loadAll().finally(() => setLoading(false))
   }, [recordId, loadAll])
 
-  function handleChange(id: number, choice: 'yes' | 'no' | null, text: string) {
-    setAnswers(prev => ({ ...prev, [id]: { choice, text } }))
+  // AI 질문 pending 중 폴링 (3초마다)
+  useEffect(() => {
+    if (!aiPending || !recordId) return
+    const timer = setInterval(async () => {
+      try {
+        const res = await client.get(`/api/v1/surveys/my-responses/${recordId}`)
+        if (!res.data.ai_pending) {
+          const aqs: AIQuestion[] = (res.data.ai_questions ?? []).map((q: AIQuestion) => ({
+            ...q, type: 'ai' as const,
+          }))
+          setAiQs(aqs)
+          setAiPending(false)
+          clearInterval(timer)
+        }
+      } catch {}
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [aiPending, recordId])
+
+  function handleChange(id: number, type: 'common' | 'ai', patch: Partial<Answer>) {
+    const key = `${type}_${id}`
+    setAnswers(prev => ({ ...prev, [key]: { ...emptyAnswer(), ...prev[key], ...patch } }))
   }
 
-  // ── 저장 ─────────────────────────────────────────────────
+  // ── 임시 저장 ─────────────────────────────────────────
   async function handleSave() {
     if (!recordId) return
     setSaving(true)
     setSaveMsg(null)
 
-    const responses = commonQs
-      .map(q => ({
-        question_id:   q.question_id,
-        question_type: q.type,
-        choice:        answers[q.question_id]?.choice ?? null,
-        text_answer:   answers[q.question_id]?.text ?? '',
-      }))
-      .filter(r => r.choice !== null || r.text_answer.trim() !== '')
+    const responses: object[] = []
+
+    commonQs.forEach(q => {
+      const a = answers[`common_${q.question_id}`]
+      if (!a) return
+      if (a.choice !== null || a.text.trim() !== '') {
+        responses.push({ question_id: q.question_id, question_type: 'common', choice: a.choice, text_answer: a.text })
+      }
+    })
+
+    aiQs.forEach(q => {
+      const a = answers[`ai_${q.question_id}`]
+      if (!a) return
+      const qType = q.question_type ?? 'yes_no'
+      let choice: string | null = null
+      let text = ''
+
+      if (qType === 'yes_no') {
+        choice = a.choice
+        text   = a.text
+      } else if (qType === 'single_select' || qType === 'multi_select') {
+        text = a.selected.join(', ')
+      } else {
+        text = a.text
+      }
+
+      if (choice !== null || text.trim() !== '') {
+        responses.push({ question_id: q.question_id, question_type: 'ai', choice, text_answer: text })
+      }
+    })
 
     try {
-      await client.post('/api/v1/surveys/responses', {
-        record_id: recordId,
-        responses,
-      })
+      await client.post('/api/v1/surveys/responses', { record_id: recordId, responses })
       setSaveMsg('success')
       await loadAll()
       setTimeout(() => setSaveMsg(null), 3000)
-    } catch (e: unknown) {
-      console.error('저장 실패:', e)
+    } catch {
       setSaveMsg('error')
     } finally {
       setSaving(false)
     }
   }
 
-  // ── 변경사항 감지 ─────────────────────────────────────────
-  const hasNewAnswers = commonQs.some(q => {
-    const cur = answers[q.question_id]
-    const hasAnswer = cur?.choice !== null || (cur?.text ?? '').trim() !== ''
-    return hasAnswer && !q.answered
-  }) || commonQs.some(q => {
-    const cur = answers[q.question_id]
-    if (!q.answered) return false
-    return cur?.choice !== q.choice || (cur?.text ?? '') !== (q.text_answer ?? '')
-  })
+  // ── 설문 완료 → AI 요약 트리거 ───────────────────────
+  async function handleComplete() {
+    if (!recordId || completing) return
+    setCompleting(true)
+    setCompleteError('')
 
-  // 공통질문 전체 답변 완료 여부 (없으면 바로 통과)
+    // 먼저 저장
+    setSaving(true)
+    const responses: object[] = []
+    commonQs.forEach(q => {
+      const a = answers[`common_${q.question_id}`]
+      if (!a) return
+      if (a.choice !== null || a.text.trim() !== '') {
+        responses.push({ question_id: q.question_id, question_type: 'common', choice: a.choice, text_answer: a.text })
+      }
+    })
+    aiQs.forEach(q => {
+      const a = answers[`ai_${q.question_id}`]
+      if (!a) return
+      const qType = q.question_type ?? 'yes_no'
+      let choice: string | null = null
+      let text = ''
+      if (qType === 'yes_no') { choice = a.choice; text = a.text }
+      else if (qType === 'single_select' || qType === 'multi_select') { text = a.selected.join(', ') }
+      else { text = a.text }
+      if (choice !== null || text.trim() !== '') {
+        responses.push({ question_id: q.question_id, question_type: 'ai', choice, text_answer: text })
+      }
+    })
+    try {
+      await client.post('/api/v1/surveys/responses', { record_id: recordId, responses })
+    } catch { /* 저장 실패해도 complete 시도 */ }
+    setSaving(false)
+
+    // AI 요약 요청
+    try {
+      await client.post(`/api/v1/surveys/complete/${recordId}`)
+      navigate('/patient/survey/done', { state: { recordId }, replace: true })
+    } catch {
+      setCompleteError('AI 요약 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+      setCompleting(false)
+    }
+  }
+
+  // ── 완료 가능 여부 ────────────────────────────────────
   const allCommonAnswered = commonQs.length === 0 || commonQs.every(q => {
-    const a = answers[q.question_id]
+    const a = answers[`common_${q.question_id}`]
     return a?.choice !== null
   })
+  const allAIAnswered = aiQs.length === 0 || aiQs.every(q => {
+    const a = answers[`ai_${q.question_id}`]
+    const qType = q.question_type ?? 'yes_no'
+    if (!a) return false
+    if (qType === 'yes_no')     return a.choice !== null
+    if (qType === 'single_select' || qType === 'multi_select') return a.selected.length > 0
+    if (qType === 'short_text') return a.text.trim() !== ''
+    return false
+  })
+  const canComplete = allCommonAnswered && allAIAnswered && !aiPending
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
@@ -233,8 +456,7 @@ export default function SurveyPage() {
         <div style={{ width: 56 }} />
       </header>
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 80px' }}>
-
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 100px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', paddingTop: 60 }}>
             <p style={{ color: '#9ca3af', fontSize: 14 }}>⏳ 질문을 불러오는 중...</p>
@@ -245,29 +467,25 @@ export default function SurveyPage() {
             <button onClick={() => navigate('/patient')} style={{
               marginTop: 16, padding: '10px 20px',
               backgroundColor: 'var(--capd-primary)', color: '#fff',
-              border: 'none', borderRadius: 8,
-              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
             }}>목록으로</button>
           </div>
         ) : (
           <>
-            {/* 저장 메시지 */}
+            {/* 알림 메시지 */}
             {saveMsg === 'success' && (
-              <div style={{
-                padding: '10px 16px', borderRadius: 8, marginBottom: 14,
-                backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0',
-                fontSize: 13, color: '#16a34a', fontWeight: 500,
-              }}>
+              <div style={{ padding: '10px 16px', borderRadius: 8, marginBottom: 14, backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 13, color: '#16a34a', fontWeight: 500 }}>
                 ✓ 답변이 저장되었습니다.
               </div>
             )}
             {saveMsg === 'error' && (
-              <div style={{
-                padding: '10px 16px', borderRadius: 8, marginBottom: 14,
-                backgroundColor: '#fef2f2', border: '1px solid #fecaca',
-                fontSize: 13, color: '#dc2626',
-              }}>
+              <div style={{ padding: '10px 16px', borderRadius: 8, marginBottom: 14, backgroundColor: '#fef2f2', border: '1px solid #fecaca', fontSize: 13, color: '#dc2626' }}>
                 ⚠ 저장에 실패했습니다. 다시 시도해 주세요.
+              </div>
+            )}
+            {completeError && (
+              <div style={{ padding: '10px 16px', borderRadius: 8, marginBottom: 14, backgroundColor: '#fef2f2', border: '1px solid #fecaca', fontSize: 13, color: '#dc2626' }}>
+                ⚠ {completeError}
               </div>
             )}
 
@@ -275,8 +493,7 @@ export default function SurveyPage() {
             <div style={{
               backgroundColor: '#fff', borderRadius: 14,
               padding: '20px 18px', marginBottom: 16,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-              border: '1px solid #e5e7eb',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e5e7eb',
             }}>
               <div style={{ marginBottom: 14 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -285,17 +502,50 @@ export default function SurveyPage() {
                 </p>
                 <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 3 }}>담당 의사 선생님이 설정한 질문입니다.</p>
               </div>
-
               {commonQs.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13 }}>
                   등록된 공통 질문이 없습니다.
                 </div>
               ) : (
                 commonQs.map(q => (
-                  <QuestionItem
+                  <CommonQuestionItem
                     key={q.question_id}
                     question={q}
-                    answer={answers[q.question_id] ?? { choice: null, text: '' }}
+                    answer={answers[`common_${q.question_id}`] ?? emptyAnswer()}
+                    onChange={handleChange}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* AI 추천 질문 카드 */}
+            <div style={{
+              backgroundColor: '#fff', borderRadius: 14,
+              padding: '20px 18px', marginBottom: 16,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #ddd6fe',
+            }}>
+              <div style={{ marginBottom: 14 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 3, height: 14, backgroundColor: '#7c3aed', borderRadius: 2, display: 'inline-block' }} />
+                  AI 추천 질문
+                </p>
+                <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 3 }}>오늘 기록을 바탕으로 AI가 생성한 질문입니다.</p>
+              </div>
+              {aiPending ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13 }}>
+                  <span style={{ display: 'block', marginBottom: 6, fontSize: 20 }}>🤖</span>
+                  AI가 질문을 생성하고 있습니다...
+                </div>
+              ) : aiQs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13 }}>
+                  오늘 기록에 특이사항이 없어 AI 추천 질문이 없습니다.
+                </div>
+              ) : (
+                aiQs.map(q => (
+                  <AIQuestionItem
+                    key={q.question_id}
+                    question={q}
+                    answer={answers[`ai_${q.question_id}`] ?? emptyAnswer()}
                     onChange={handleChange}
                   />
                 ))
@@ -309,79 +559,47 @@ export default function SurveyPage() {
       {!loading && recordId && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
-          backgroundColor: '#fff',
-          borderTop: '1px solid #e5e7eb',
-          padding: '12px 20px',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
+          backgroundColor: '#fff', borderTop: '1px solid #e5e7eb',
+          padding: '12px 20px', boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
           zIndex: 100,
-          maxWidth: 680, margin: '0 auto',
         }}>
-          {/* 공통질문 미완료: 저장 버튼 */}
-          {!allCommonAnswered && (
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                style={{
-                  flex: 1, height: 48,
-                  backgroundColor: '#f3f4f6', color: '#6b7280',
-                  border: 'none', borderRadius: 10,
-                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                }}
-                onClick={() => navigate('/patient')}
-              >
-                나중에 하기
-              </button>
-              <button
-                style={{
-                  flex: 2, height: 48,
-                  backgroundColor: saving || !hasNewAnswers ? '#9ca3af' : 'var(--capd-primary)',
-                  color: '#fff', border: 'none', borderRadius: 10,
-                  fontSize: 14, fontWeight: 700,
-                  cursor: saving || !hasNewAnswers ? 'not-allowed' : 'pointer',
-                }}
-                onClick={handleSave}
-                disabled={saving || !hasNewAnswers}
-              >
-                {saving ? '저장 중...' : '답변 저장하기'}
-              </button>
-            </div>
-          )}
+          <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button
+              style={{
+                width: '100%', height: 40,
+                backgroundColor: saving ? '#9ca3af' : '#f3f4f6',
+                color: '#6b7280', border: 'none', borderRadius: 10,
+                fontSize: 13, fontWeight: 600,
+                cursor: saving ? 'not-allowed' : 'pointer',
+              }}
+              onClick={handleSave}
+              disabled={saving || completing}
+            >
+              {saving ? '저장 중...' : '임시 저장'}
+            </button>
 
-          {/* 공통질문 완료: AI 문진 시작 버튼 */}
-          {allCommonAnswered && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {hasNewAnswers && (
-                <button
-                  style={{
-                    width: '100%', height: 40,
-                    backgroundColor: saving ? '#9ca3af' : '#f3f4f6',
-                    color: '#6b7280', border: 'none', borderRadius: 10,
-                    fontSize: 13, fontWeight: 600,
-                    cursor: saving ? 'not-allowed' : 'pointer',
-                  }}
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  {saving ? '저장 중...' : '변경 사항 저장'}
-                </button>
-              )}
-              <button
-                style={{
-                  width: '100%', height: 52,
-                  backgroundColor: 'var(--capd-primary)', color: '#fff',
-                  border: 'none', borderRadius: 10,
-                  fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  boxShadow: '0 4px 12px rgba(123,107,181,0.3)',
-                }}
-                onClick={async () => {
-                  if (hasNewAnswers) await handleSave()
-                  navigate('/patient/conversation', { state: { recordId } })
-                }}
-              >
-                🤖 AI 문진 시작하기
-              </button>
-            </div>
-          )}
+            <button
+              style={{
+                width: '100%', height: 52,
+                backgroundColor: canComplete && !completing ? 'var(--capd-primary)' : '#9ca3af',
+                color: '#fff', border: 'none', borderRadius: 10,
+                fontSize: 15, fontWeight: 700,
+                cursor: canComplete && !completing ? 'pointer' : 'not-allowed',
+                boxShadow: canComplete && !completing ? '0 4px 12px rgba(123,107,181,0.3)' : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+              onClick={handleComplete}
+              disabled={!canComplete || completing}
+            >
+              {completing
+                ? '⏳ AI 요약 생성 중...'
+                : canComplete
+                  ? '✅ 설문 완료하기'
+                  : aiPending
+                    ? '🤖 AI 질문 생성 중...'
+                    : '모든 질문에 답변해주세요'}
+            </button>
+          </div>
         </div>
       )}
     </div>
