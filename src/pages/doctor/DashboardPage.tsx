@@ -514,7 +514,17 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '10%'  }} />{/* 환자명 */}
+                  <col style={{ width: '8%'   }} />{/* 환자번호 */}
+                  <col style={{ width: '12%'  }} />{/* 전화번호 */}
+                  <col style={{ width: '8%'   }} />{/* 상태 */}
+                  <col style={{ width: '9%'   }} />{/* 위험도 */}
+                  <col style={{ width: '8%'   }} />{/* AI 질문 */}
+                  <col style={{ width: '35%'  }} />{/* AI 요약 */}
+                  <col style={{ width: '10%'  }} />{/* 기록 보기 */}
+                </colgroup>
                 <thead>
                   <tr style={{ background: C.bg }}>
                     {['환자명', '환자번호', '전화번호', '상태', '위험도', 'AI 질문', 'AI 요약', ''].map((h, i) => (
@@ -601,10 +611,12 @@ export default function DashboardPage() {
                         </td>
 
                         {/* AI 요약 */}
-                        <td style={{ padding: '12px 12px', maxWidth: 200 }}>
+                        <td style={{ padding: '12px 12px' }}>
                           {rec?.ai_summary ? (
-                            <p style={{ margin: 0, fontSize: 11, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
-                              {rec.ai_summary}
+                            <p style={{ margin: 0, fontSize: 11, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {rec.ai_summary.trim().startsWith('{')
+                                ? (() => { try { return JSON.parse(rec.ai_summary).ai_summary ?? rec.ai_summary } catch { return rec.ai_summary.replace(/\{.*?"ai_summary"\s*:\s*"/, '').slice(0, 120) } })()
+                                : rec.ai_summary}
                             </p>
                           ) : (
                             <span style={{ fontSize: 12, color: C.textLight }}>—</span>
