@@ -590,7 +590,9 @@ export default function DashboardPage() {
 
                         {/* 상태 */}
                         <td style={{ padding: '12px 12px' }}>
-                          {rec ? <StatusBadge status={rec.status} /> : <span style={{ fontSize: 12, color: C.textLight }}>미제출</span>}
+                          {rec ? <StatusBadge status={rec.status} /> : (
+                            <span style={{ background: '#f3f4f6', color: C.textMuted, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>미제출</span>
+                          )}
                         </td>
 
                         {/* 위험도 */}
@@ -623,16 +625,20 @@ export default function DashboardPage() {
                           )}
                         </td>
 
-                        {/* 액션: 해당 날짜 기록 보기만 */}
+                        {/* 액션 버튼 */}
                         <td style={{ padding: '12px 12px' }}>
-                          {hasRecord ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {hasRecord && (
+                              <button
+                                style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.primaryLight, color: C.primaryDark, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                                onClick={e => { e.stopPropagation(); navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } }) }}
+                              >기록 보기 →</button>
+                            )}
                             <button
-                              style={{ padding: '4px 12px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.primaryLight, color: C.primaryDark, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-                              onClick={e => { e.stopPropagation(); navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } }) }}
-                            >기록 보기 →</button>
-                          ) : (
-                            <span style={{ fontSize: 11, color: C.textLight }}>—</span>
-                          )}
+                              style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 7, background: '#fff', color: C.textMuted, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                              onClick={e => { e.stopPropagation(); navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } }) }}
+                            >전체 기록</button>
+                          </div>
                         </td>
                       </tr>
                     )
