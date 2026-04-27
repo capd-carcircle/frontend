@@ -6,8 +6,10 @@ export interface CommonQuestion {
   id: number
   question_text: string
   question_type: QuestionType
-  options: string | null   // JSON 문자열 또는 null
+  options: string | null
   is_active: boolean
+  target_all_patients: boolean
+  assigned_patient_ids: number[]
   created_at: string
   updated_at: string
 }
@@ -31,6 +33,8 @@ export const createCommonQuestion = (data: {
   question_text: string
   question_type: QuestionType
   options?: string[]
+  target_all_patients?: boolean
+  patient_ids?: number[]
 }): Promise<CommonQuestion> =>
   client
     .post<CommonQuestion>('/api/v1/questions/common', data)
@@ -44,6 +48,8 @@ export const updateCommonQuestion = (
     question_type?: QuestionType
     options?: string[]
     is_active?: boolean
+    target_all_patients?: boolean
+    patient_ids?: number[]
   },
 ): Promise<CommonQuestion> =>
   client.patch<CommonQuestion>(`/api/v1/questions/common/${id}`, data).then((r) => r.data)
