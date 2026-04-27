@@ -9,6 +9,8 @@ type QuestionType = 'yes_no' | 'single_select' | 'multi_select' | 'short_text'
 interface CommonQuestion {
   question_id: number
   question_text: string
+  question_type: QuestionType
+  options: string[] | null
   type: 'common'
   choice: 'yes' | 'no' | null
   text_answer: string | null
@@ -35,13 +37,19 @@ interface Answer {
 
 const emptyAnswer = (): Answer => ({ choice: null, selected: [], text: '' })
 
-// ── 공통 질문 컴포넌트 ────────────────────────────────────
+// ── 공통 질문 컴포넌트 (타입별 렌더) ─────────────────────
 function CommonQuestionItem({ question, answer, onChange }: {
   question: CommonQuestion
   answer: Answer
   onChange: (id: number, type: 'common', patch: Partial<Answer>) => void
 }) {
-  const answered = answer.choice !== null || answer.text.trim() !== ''
+  const qType = question.question_type ?? 'yes_no'
+  const answered =
+    (qType === 'yes_no' && answer.choice !== null) ||
+    (qType === 'single_select' && answer.selected.length > 0) ||
+    (qType === 'multi_select' && answer.selected.length > 0) ||
+    (qType === 'short_text' && answer.text.trim() !== '')
+
   return (
     <div style={{
       padding: '16px', borderRadius: 10,
@@ -50,21 +58,99 @@ function CommonQuestionItem({ question, answer, onChange }: {
     }}>
       {answered && <AnsweredBadge />}
       <QuestionLabel text={question.question_text} hasCheck={answered} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <YesNoButtons
-          value={answer.choice}
-          onChange={(v) => onChange(question.question_id, 'common', { choice: v })}
-        />
+
+      {/* 예/아니오 */}
+      {qType === 'yes_no' && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <YesNoButtons
+            value={answer.choice}
+            onChange={(v) => onChange(question.question_id, 'common', { choice: v })}
+          />
+          <input
+            type="text"
+            placeholder="비고 (선택사항)"
+            style={textInputStyle}
+            value={answer.text}
+            onChange={e => onChange(question.question_id, 'common', { text: e.target.value })}
+            onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
+            onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
+          />
+        </div>
+      )}
+
+      {/* 단일 선택 */}
+      {qType === 'single_select' && question.options && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {question.options.map((opt) => (
+            <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name={`common_single_${question.question_id}`}
+                checked={answer.selected[0] === opt}
+                onChange={() => onChange(question.question_id, 'common', { selected: [opt] })}
+                style={{ accentColor: 'var(--capd-primary)', width: 16, height: 16 }}
+              />
+              <span style={{ fontSize: 14, color: '#1a1a2e' }}>{opt}</span>
+            </label>
+          ))}
+          <input
+            type="text"
+            placeholder="비고 (선택사항)"
+            style={{ ...textInputStyle, width: '100%', flex: 'unset', minWidth: 'unset', marginTop: 4 }}
+            value={answer.text}
+            onChange={e => onChange(question.question_id, 'common', { text: e.target.value })}
+            onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
+            onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
+          />
+        </div>
+      )}
+
+      {/* 다중 선택 */}
+      {qType === 'multi_select' && question.options && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {question.options.map((opt) => {
+            const checked = answer.selected.includes(opt)
+            return (
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    const next = checked
+                      ? answer.selected.filter(s => s !== opt)
+                      : [...answer.selected, opt]
+                    onChange(question.question_id, 'common', { selected: next })
+                  }}
+                  style={{ accentColor: 'var(--capd-primary)', width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: 14, color: '#1a1a2e' }}>{opt}</span>
+              </label>
+            )
+          })}
+          <input
+            type="text"
+            placeholder="비고 (선택사항)"
+            style={{ ...textInputStyle, width: '100%', flex: 'unset', minWidth: 'unset', marginTop: 4 }}
+            value={answer.text}
+            onChange={e => onChange(question.question_id, 'common', { text: e.target.value })}
+            onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
+            onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
+          />
+        </div>
+      )}
+
+      {/* 서술식 — 비고 없이 텍스트만 */}
+      {qType === 'short_text' && (
         <input
           type="text"
-          placeholder="직접 입력 (선택사항)"
-          style={textInputStyle}
+          placeholder="답변을 입력해주세요"
+          style={{ ...textInputStyle, width: '100%', flex: 'unset', minWidth: 'unset' }}
           value={answer.text}
           onChange={e => onChange(question.question_id, 'common', { text: e.target.value })}
           onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
           onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
         />
-      </div>
+      )}
     </div>
   )
 }
@@ -269,7 +355,15 @@ export default function SurveyPage() {
         cqs.forEach(q => {
           const key = `common_${q.question_id}`
           if (!(key in next)) {
-            next[key] = { choice: q.choice ?? null, selected: [], text: q.text_answer ?? '' }
+            const cType = q.question_type ?? 'yes_no'
+            const isSelect = cType === 'single_select' || cType === 'multi_select'
+            next[key] = {
+              choice:   cType === 'yes_no' ? (q.choice ?? null) : null,
+              selected: isSelect && q.text_answer
+                ? q.text_answer.split(',').map(s => s.trim()).filter(Boolean)
+                : [],
+              text: cType === 'short_text' ? (q.text_answer ?? '') : (cType === 'yes_no' ? '' : ''),
+            }
           }
         })
         aqs.forEach(q => {
@@ -333,8 +427,19 @@ export default function SurveyPage() {
     commonQs.forEach(q => {
       const a = answers[`common_${q.question_id}`]
       if (!a) return
-      if (a.choice !== null || a.text.trim() !== '') {
-        responses.push({ question_id: q.question_id, question_type: 'common', choice: a.choice, text_answer: a.text })
+      const cType = q.question_type ?? 'yes_no'
+      let cChoice: string | null = null
+      let cText = ''
+      if (cType === 'yes_no') {
+        cChoice = a.choice
+        cText   = a.text
+      } else if (cType === 'single_select' || cType === 'multi_select') {
+        cText = a.selected.join(', ')
+      } else {
+        cText = a.text
+      }
+      if (cChoice !== null || cText.trim() !== '') {
+        responses.push({ question_id: q.question_id, question_type: 'common', choice: cChoice, text_answer: cText })
       }
     })
 
@@ -383,8 +488,19 @@ export default function SurveyPage() {
     commonQs.forEach(q => {
       const a = answers[`common_${q.question_id}`]
       if (!a) return
-      if (a.choice !== null || a.text.trim() !== '') {
-        responses.push({ question_id: q.question_id, question_type: 'common', choice: a.choice, text_answer: a.text })
+      const cType = q.question_type ?? 'yes_no'
+      let cChoice: string | null = null
+      let cText = ''
+      if (cType === 'yes_no') {
+        cChoice = a.choice
+        cText   = a.text
+      } else if (cType === 'single_select' || cType === 'multi_select') {
+        cText = a.selected.join(', ')
+      } else {
+        cText = a.text
+      }
+      if (cChoice !== null || cText.trim() !== '') {
+        responses.push({ question_id: q.question_id, question_type: 'common', choice: cChoice, text_answer: cText })
       }
     })
     aiQs.forEach(q => {
@@ -418,7 +534,12 @@ export default function SurveyPage() {
   // ── 완료 가능 여부 ────────────────────────────────────
   const allCommonAnswered = commonQs.length === 0 || commonQs.every(q => {
     const a = answers[`common_${q.question_id}`]
-    return a?.choice !== null
+    const cType = q.question_type ?? 'yes_no'
+    if (!a) return false
+    if (cType === 'yes_no')     return a.choice !== null
+    if (cType === 'single_select' || cType === 'multi_select') return a.selected.length > 0
+    if (cType === 'short_text') return a.text.trim() !== ''
+    return false
   })
   const allAIAnswered = aiQs.length === 0 || aiQs.every(q => {
     const a = answers[`ai_${q.question_id}`]

@@ -1,11 +1,21 @@
 import client from './client'
 
+export type QuestionType = 'yes_no' | 'single_select' | 'multi_select' | 'short_text'
+
 export interface CommonQuestion {
   id: number
   question_text: string
+  question_type: QuestionType
+  options: string | null   // JSON 문자열 또는 null
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+/** options JSON 파싱 헬퍼 */
+export const parseOptions = (options: string | null): string[] => {
+  if (!options) return []
+  try { return JSON.parse(options) } catch { return [] }
 }
 
 /** 공통 질문 목록 조회 (active 필터 선택적) */
@@ -17,15 +27,24 @@ export const listCommonQuestions = (active?: boolean): Promise<CommonQuestion[]>
     .then((r) => r.data)
 
 /** 공통 질문 생성 */
-export const createCommonQuestion = (question_text: string): Promise<CommonQuestion> =>
+export const createCommonQuestion = (data: {
+  question_text: string
+  question_type: QuestionType
+  options?: string[]
+}): Promise<CommonQuestion> =>
   client
-    .post<CommonQuestion>('/api/v1/questions/common', { question_text })
+    .post<CommonQuestion>('/api/v1/questions/common', data)
     .then((r) => r.data)
 
-/** 공통 질문 수정 (text / is_active 부분 수정 가능) */
+/** 공통 질문 수정 */
 export const updateCommonQuestion = (
   id: number,
-  data: { question_text?: string; is_active?: boolean },
+  data: {
+    question_text?: string
+    question_type?: QuestionType
+    options?: string[]
+    is_active?: boolean
+  },
 ): Promise<CommonQuestion> =>
   client.patch<CommonQuestion>(`/api/v1/questions/common/${id}`, data).then((r) => r.data)
 
