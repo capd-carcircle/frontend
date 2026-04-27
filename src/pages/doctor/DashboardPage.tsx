@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -20,13 +20,12 @@ const C = {
   dangerLight:  '#fef2f2',
 }
 
-/* ── 타입 ── */
+/* ═══════════════ 타입 ═══════════════ */
 interface PatientInfo {
   id:           number
   name:         string
   phone_number: string
 }
-
 interface TodayRecord {
   record_id:           number
   patient_id:          number
@@ -36,7 +35,6 @@ interface TodayRecord {
   ai_summary:          string | null
   unreviewed_ai_count: number
 }
-
 interface DashboardStats {
   total_submitted: number
   pending_count:   number
@@ -46,16 +44,14 @@ interface DashboardStats {
   patients:        PatientInfo[]
 }
 
-/* ── 위험도 설정 ── */
-const RISK_CONFIG = {
-  urgent:  { label: '🚨 긴급', bg: C.dangerLight,  color: C.danger,  border: '#fca5a5' },
-  caution: { label: '⚠️ 주의', bg: C.warningLight, color: C.warning, border: '#fcd34d' },
-  normal:  { label: '✓ 정상',  bg: C.successLight, color: C.success, border: '#bbf7d0' },
-} as const
+type StatusFilter = 'all' | 'submitted' | 'reviewed' | 'none'
 
-/* ── 날짜 유틸 ── */
+/* ═══════════════ 날짜 유틸 (로컬 기준) ═══════════════ */
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  const y  = d.getFullYear()
+  const m  = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
 }
 function isToday(d: Date): boolean {
   return toDateStr(d) === toDateStr(new Date())
@@ -64,23 +60,40 @@ function isFuture(d: Date): boolean {
   return toDateStr(d) > toDateStr(new Date())
 }
 function formatDateKo(d: Date): string {
-  return d.toLocaleDateString('ko-KR', {
-    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
-  })
+  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 }
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate()
-}
-function getFirstDayOfMonth(year: number, month: number): number {
-  return new Date(year, month, 1).getDay()
+function getDaysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate() }
+function getFirstDayOfMonth(y: number, m: number) { return new Date(y, m, 1).getDay() }
+
+/* ═══════════════ 검색어 하이라이트 ═══════════════ */
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark style={{ background: '#fde68a', color: C.text, padding: '0 1px', borderRadius: 2, fontWeight: 700 }}>
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  )
 }
 
-/* ── 상태 뱃지 ── */
+/* ═══════════════ 위험도 설정 ═══════════════ */
+const RISK = {
+  urgent:  { label: '🚨 긴급', bg: C.dangerLight,  color: C.danger,  border: '#fca5a5', rank: 0 },
+  caution: { label: '⚠️ 주의', bg: C.warningLight, color: C.warning, border: '#fcd34d', rank: 1 },
+  normal:  { label: '✓ 정상',  bg: C.successLight, color: C.success, border: '#bbf7d0', rank: 2 },
+} as const
+
+/* ═══════════════ 뱃지 컴포넌트 ═══════════════ */
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string }> = {
     submitted: { label: '미검토',   bg: C.dangerLight,  color: C.danger  },
     reviewed:  { label: '승인 완료', bg: C.successLight, color: C.success },
-    rejected:  { label: '반려',     bg: '#f3f4f6',       color: C.textMuted },
+    rejected:  { label: '반려',     bg: '#f3f4f6',      color: C.textMuted },
   }
   const cfg = map[status] ?? { label: status, bg: '#f3f4f6', color: C.textMuted }
   return (
@@ -89,287 +102,210 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   )
 }
-
-/* ── 위험도 뱃지 ── */
 function RiskBadge({ level }: { level: 'urgent' | 'caution' | 'normal' | null }) {
-  if (!level) return <span style={{ color: C.textMuted, fontSize: 12 }}>—</span>
-  const cfg = RISK_CONFIG[level]
+  if (!level) return <span style={{ color: C.textLight, fontSize: 12 }}>—</span>
+  const r = RISK[level]
   return (
-    <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>
-      {cfg.label}
+    <span style={{ background: r.bg, color: r.color, border: `1px solid ${r.border}`, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>
+      {r.label}
     </span>
   )
 }
 
-/* ── 통계 카드 ── */
+/* ═══════════════ 통계 카드 ═══════════════ */
 function StatCard({ label, value, sub, color, icon }: {
   label: string; value: string | number; sub?: string; color?: string; icon?: string
 }) {
   return (
-    <div style={{
-      background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`,
-      padding: '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-      display: 'flex', flexDirection: 'column', gap: 4,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         {icon && <span style={{ fontSize: 14 }}>{icon}</span>}
         <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 500 }}>{label}</div>
       </div>
       <div style={{ fontSize: 28, fontWeight: 800, color: color ?? C.text, lineHeight: 1, letterSpacing: '-0.03em' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: C.textMuted }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>{sub}</div>}
     </div>
   )
 }
 
-/* ── 위험도 도넛 차트 (CSS) ── */
-function RiskDonut({ records }: { records: TodayRecord[] }) {
-  const withLevel = records.filter(r => r.risk_level)
-  const urgent  = withLevel.filter(r => r.risk_level === 'urgent').length
-  const caution = withLevel.filter(r => r.risk_level === 'caution').length
-  const normal  = withLevel.filter(r => r.risk_level === 'normal').length
-  const total   = urgent + caution + normal
+/* ═══════════════ 위험도 분포 바 ═══════════════ */
+function RiskBar({ records }: { records: TodayRecord[] }) {
+  const w = records.filter(r => r.risk_level)
+  const u = w.filter(r => r.risk_level === 'urgent').length
+  const c = w.filter(r => r.risk_level === 'caution').length
+  const n = w.filter(r => r.risk_level === 'normal').length
+  const total = u + c + n
 
-  if (total === 0) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 100 }}>
-        <p style={{ color: C.textLight, fontSize: 12 }}>데이터 없음</p>
-      </div>
-    )
-  }
+  if (total === 0) return <p style={{ fontSize: 12, color: C.textLight, margin: 0, textAlign: 'center', padding: '12px 0' }}>데이터 없음</p>
 
   const items = [
-    { label: '긴급',  count: urgent,  color: C.danger,  bg: C.dangerLight  },
-    { label: '주의',  count: caution, color: C.warning, bg: C.warningLight },
-    { label: '정상',  count: normal,  color: C.success, bg: C.successLight },
+    { label: '긴급', count: u, color: C.danger,  bg: C.dangerLight  },
+    { label: '주의', count: c, color: C.warning, bg: C.warningLight },
+    { label: '정상', count: n, color: C.success, bg: C.successLight },
   ]
-
   return (
     <div>
-      {/* 막대 바 */}
-      <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', height: 10, marginBottom: 14 }}>
-        {items.map(item => item.count > 0 && (
-          <div
-            key={item.label}
-            title={`${item.label}: ${item.count}명`}
-            style={{ width: `${(item.count / total) * 100}%`, background: item.color, transition: 'width 0.5s' }}
-          />
+      <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', height: 8, marginBottom: 12 }}>
+        {items.map(i => i.count > 0 && (
+          <div key={i.label} style={{ width: `${(i.count / total) * 100}%`, background: i.color, transition: 'width 0.5s' }} />
         ))}
       </div>
-      {/* 범례 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map(item => (
-          <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: C.textMuted }}>{item.label}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: item.count > 0 ? item.color : C.textLight }}>
-                {item.count}
-              </span>
-              <span style={{
-                fontSize: 10, fontWeight: 600,
-                background: item.bg, color: item.color,
-                borderRadius: 4, padding: '1px 5px',
-              }}>
-                {total > 0 ? Math.round((item.count / total) * 100) : 0}%
-              </span>
-            </div>
+      {items.map(i => (
+        <div key={i.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: i.color }} />
+            <span style={{ fontSize: 11, color: C.textMuted }}>{i.label}</span>
           </div>
-        ))}
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: i.count > 0 ? i.color : C.textLight }}>{i.count}</span>
+            <span style={{ fontSize: 10, background: i.bg, color: i.color, borderRadius: 4, padding: '1px 5px', fontWeight: 600 }}>
+              {Math.round((i.count / total) * 100)}%
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-/* ── 제출율 게이지 ── */
-function SubmitRate({ submitted, total }: { submitted: number; total: number }) {
+/* ═══════════════ 제출율 게이지 ═══════════════ */
+function SubmitGauge({ submitted, total }: { submitted: number; total: number }) {
   const rate = total > 0 ? Math.round((submitted / total) * 100) : 0
   const color = rate >= 80 ? C.success : rate >= 50 ? C.warning : C.danger
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: C.textMuted }}>전체 환자 기준</span>
-        <span style={{ fontSize: 24, fontWeight: 800, color, letterSpacing: '-0.03em' }}>{rate}%</span>
+        <span style={{ fontSize: 11, color: C.textMuted }}>전체 환자 기준</span>
+        <span style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.03em' }}>{rate}%</span>
       </div>
-      <div style={{ height: 8, background: C.bg, borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{
-          height: '100%', width: `${rate}%`, background: color,
-          borderRadius: 99, transition: 'width 0.5s ease',
-        }} />
+      <div style={{ height: 7, background: C.bg, borderRadius: 99, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${rate}%`, background: color, borderRadius: 99, transition: 'width 0.5s ease' }} />
       </div>
-      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 6 }}>
-        {submitted}명 제출 / {total}명 전체
-      </div>
+      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 5 }}>{submitted}명 제출 / {total}명 전체</div>
     </div>
   )
 }
 
-/* ── 미니 캘린더 ── */
+/* ═══════════════ 미니 캘린더 ═══════════════ */
 const WEEKDAYS = ['일','월','화','수','목','금','토']
-const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
+const MONTHS   = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
 
-function MiniCalendar({ selectedDate, onSelect }: {
-  selectedDate: Date
-  onSelect: (d: Date) => void
-}) {
+function MiniCalendar({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (d: Date) => void }) {
   const today = new Date()
-  const [viewYear,  setViewYear]  = useState(selectedDate.getFullYear())
-  const [viewMonth, setViewMonth] = useState(selectedDate.getMonth())
+  const [vy, setVy] = useState(selectedDate.getFullYear())
+  const [vm, setVm] = useState(selectedDate.getMonth())
 
-  // selectedDate가 바뀌면 캘린더 뷰도 맞춤
-  useEffect(() => {
-    setViewYear(selectedDate.getFullYear())
-    setViewMonth(selectedDate.getMonth())
-  }, [selectedDate])
+  useEffect(() => { setVy(selectedDate.getFullYear()); setVm(selectedDate.getMonth()) }, [selectedDate])
 
-  const daysInMonth  = getDaysInMonth(viewYear, viewMonth)
-  const firstDayOfWeek = getFirstDayOfMonth(viewYear, viewMonth)
-
-  const prevMonth = () => {
-    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
-    else setViewMonth(m => m - 1)
-  }
-  const nextMonth = () => {
-    const nextY = viewMonth === 11 ? viewYear + 1 : viewYear
-    const nextM = viewMonth === 11 ? 0 : viewMonth + 1
-    // 미래 달로는 못 넘어감 (현재 달까지만)
-    if (nextY > today.getFullYear() || (nextY === today.getFullYear() && nextM > today.getMonth())) return
-    setViewYear(nextY); setViewMonth(nextM)
-  }
-  const isNextDisabled = (
-    viewYear > today.getFullYear() ||
-    (viewYear === today.getFullYear() && viewMonth >= today.getMonth())
-  )
-
-  const cells: (number | null)[] = [
-    ...Array(firstDayOfWeek).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ]
-  // 6행 맞추기
+  const days      = getDaysInMonth(vy, vm)
+  const firstDay  = getFirstDayOfMonth(vy, vm)
+  const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)]
   while (cells.length % 7 !== 0) cells.push(null)
 
+  const prevM = () => { if (vm === 0) { setVy(y => y - 1); setVm(11) } else setVm(m => m - 1) }
+  const nextM = () => {
+    const ny = vm === 11 ? vy + 1 : vy
+    const nm = vm === 11 ? 0 : vm + 1
+    if (ny > today.getFullYear() || (ny === today.getFullYear() && nm > today.getMonth())) return
+    setVy(ny); setVm(nm)
+  }
+  const nextDisabled = vy > today.getFullYear() || (vy === today.getFullYear() && vm >= today.getMonth())
   const selStr = toDateStr(selectedDate)
   const todStr = toDateStr(today)
 
   return (
     <div style={{ userSelect: 'none' }}>
-      {/* 월 네비게이션 */}
+      {/* 월 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <button
-          onClick={prevMonth}
-          style={{ width: 28, height: 28, border: `1px solid ${C.border}`, borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 14, color: C.textMuted, fontFamily: 'inherit' }}
-        >‹</button>
-        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{viewYear}년 {MONTH_NAMES[viewMonth]}</span>
-        <button
-          onClick={nextMonth}
-          disabled={isNextDisabled}
-          style={{
-            width: 28, height: 28, border: `1px solid ${C.border}`, borderRadius: 6,
-            background: isNextDisabled ? '#f9fafb' : '#fff',
-            cursor: isNextDisabled ? 'default' : 'pointer',
-            fontSize: 14, color: isNextDisabled ? C.textLight : C.textMuted, fontFamily: 'inherit',
-          }}
-        >›</button>
+        <button onClick={prevM} style={{ width: 26, height: 26, border: `1px solid ${C.border}`, borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13, color: C.textMuted, fontFamily: 'inherit' }}>‹</button>
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{vy}년 {MONTHS[vm]}</span>
+        <button onClick={nextM} disabled={nextDisabled} style={{ width: 26, height: 26, border: `1px solid ${C.border}`, borderRadius: 6, background: nextDisabled ? '#f9fafb' : '#fff', cursor: nextDisabled ? 'default' : 'pointer', fontSize: 13, color: nextDisabled ? C.textLight : C.textMuted, fontFamily: 'inherit' }}>›</button>
       </div>
-
-      {/* 요일 헤더 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+      {/* 요일 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, marginBottom: 3 }}>
         {WEEKDAYS.map((d, i) => (
-          <div key={d} style={{
-            textAlign: 'center', fontSize: 10, fontWeight: 700,
-            color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : C.textLight,
-            padding: '2px 0',
-          }}>{d}</div>
+          <div key={d} style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : C.textLight, padding: '2px 0' }}>{d}</div>
         ))}
       </div>
-
-      {/* 날짜 그리드 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+      {/* 날짜 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
         {cells.map((day, idx) => {
-          if (!day) return <div key={`empty-${idx}`} />
-
-          const cellDate = new Date(viewYear, viewMonth, day)
-          const cellStr  = toDateStr(cellDate)
-          const future   = isFuture(cellDate)
-          const isSelected = cellStr === selStr
-          const isTod      = cellStr === todStr
-          const isSun      = idx % 7 === 0
-          const isSat      = idx % 7 === 6
-
+          if (!day) return <div key={`e-${idx}`} />
+          const cd   = new Date(vy, vm, day)
+          const cs   = toDateStr(cd)
+          const fut  = isFuture(cd)
+          const sel  = cs === selStr
+          const tod  = cs === todStr
+          const sun  = idx % 7 === 0
+          const sat  = idx % 7 === 6
           return (
-            <button
-              key={day}
-              disabled={future}
-              onClick={() => !future && onSelect(cellDate)}
-              style={{
-                width: '100%', aspectRatio: '1', border: 'none', borderRadius: 8,
-                fontSize: 12, fontWeight: isSelected || isTod ? 700 : 400,
-                cursor: future ? 'default' : 'pointer',
-                background: isSelected
-                  ? 'var(--capd-primary)'
-                  : isTod
-                  ? 'var(--capd-primary-light)'
-                  : 'transparent',
-                color: isSelected
-                  ? '#fff'
-                  : future
-                  ? '#d1d5db'
-                  : isTod
-                  ? 'var(--capd-primary-dark)'
-                  : isSun
-                  ? '#ef4444'
-                  : isSat
-                  ? '#3b82f6'
-                  : C.text,
-                transition: 'background 0.12s',
-                fontFamily: 'inherit',
-                position: 'relative',
-              }}
-            >
-              {day}
-            </button>
+            <button key={day} disabled={fut} onClick={() => !fut && onSelect(cd)} style={{
+              width: '100%', aspectRatio: '1', border: 'none', borderRadius: 6,
+              fontSize: 11, fontWeight: sel || tod ? 700 : 400,
+              cursor: fut ? 'default' : 'pointer',
+              background: sel ? 'var(--capd-primary)' : tod ? 'var(--capd-primary-light)' : 'transparent',
+              color: sel ? '#fff' : fut ? '#d1d5db' : tod ? 'var(--capd-primary-dark)' : sun ? '#ef4444' : sat ? '#3b82f6' : C.text,
+              fontFamily: 'inherit', transition: 'background 0.1s',
+            }}>{day}</button>
           )
         })}
       </div>
-
-      {/* 오늘로 돌아가기 */}
       {selStr !== todStr && (
-        <button
-          onClick={() => onSelect(today)}
-          style={{
-            width: '100%', marginTop: 10, padding: '6px 0',
-            border: `1px solid var(--capd-border)`, borderRadius: 8,
-            background: '#fff', color: 'var(--capd-primary-dark)',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >오늘로 이동</button>
+        <button onClick={() => onSelect(today)} style={{ width: '100%', marginTop: 8, padding: '5px 0', border: `1px solid ${C.border}`, borderRadius: 7, background: '#fff', color: 'var(--capd-primary-dark)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          오늘로 이동
+        </button>
       )}
     </div>
   )
 }
 
-/* ── 메인 ── */
+/* ═══════════════ 상태 필터 탭 ═══════════════ */
+const FILTER_TABS: { key: StatusFilter; label: string }[] = [
+  { key: 'all',       label: '전체'   },
+  { key: 'submitted', label: '미검토' },
+  { key: 'reviewed',  label: '승인완료' },
+  { key: 'none',      label: '미제출' },
+]
+
+/* ═══════════════ 정렬 함수 ═══════════════ */
+function sortedPatientList(patients: PatientInfo[], recordMap: Map<number, TodayRecord>): PatientInfo[] {
+  return [...patients].sort((a, b) => {
+    const ra = recordMap.get(a.id)
+    const rb = recordMap.get(b.id)
+    const rank = (r: TodayRecord | undefined) => {
+      if (!r) return 10
+      if (r.risk_level === 'urgent')  return 0
+      if (r.risk_level === 'caution') return 1
+      if (r.status === 'submitted')   return 2
+      return 5
+    }
+    return rank(ra) - rank(rb) || a.name.localeCompare(b.name, 'ko')
+  })
+}
+
+/* ═══════════════ 메인 컴포넌트 ═══════════════ */
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const [patients,    setPatients]    = useState<PatientInfo[]>([])
-  const [stats,       setStats]       = useState<DashboardStats | null>(null)
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState('')
-  const [hoveredRow,  setHoveredRow]  = useState<number | null>(null)
-  const [currentDate, setCurrentDate] = useState<Date>(new Date())
 
+  const [patients,      setPatients]      = useState<PatientInfo[]>([])
+  const [stats,         setStats]         = useState<DashboardStats | null>(null)
+  const [loading,       setLoading]       = useState(true)
+  const [error,         setError]         = useState('')
+  const [hoveredRow,    setHoveredRow]    = useState<number | null>(null)
+  const [currentDate,   setCurrentDate]   = useState<Date>(new Date())
+  const [searchQuery,   setSearchQuery]   = useState('')
+  const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all')
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  /* ── 데이터 fetch ── */
   const fetchData = useCallback((targetDate: Date) => {
     const token = localStorage.getItem('access_token')
     if (!token) { navigate('/login'); return }
     setLoading(true); setError('')
-
-    const dateParam = toDateStr(targetDate)
-
+    const dp = toDateStr(targetDate)
     Promise.all([
-      fetch(`${API}/api/v1/patients`,                           { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${API}/api/v1/dashboard?record_date=${dateParam}`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${API}/api/v1/patients`,                      { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${API}/api/v1/dashboard?record_date=${dp}`,   { headers: { Authorization: `Bearer ${token}` } }),
     ])
       .then(async ([pRes, dRes]) => {
         if (pRes.status === 401 || dRes.status === 401) { localStorage.clear(); navigate('/login'); return }
@@ -384,82 +320,225 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(currentDate) }, [fetchData, currentDate])
 
-  /* 기록 맵: patient_id → record */
-  const recordMap = new Map<number, TodayRecord>()
-  stats?.records.forEach(r => recordMap.set(r.patient_id, r))
+  /* ── 날짜 선택 → statusFilter 초기화 + fetch ── */
+  const handleSelectDate = (d: Date) => {
+    setCurrentDate(d)
+    setStatusFilter('all')
+  }
 
-  /* 정렬: 긴급 → 미검토(submitted) → 승인됨 → 미제출 */
-  const sortedPatients = [...patients].sort((a, b) => {
-    const ra = recordMap.get(a.id)
-    const rb = recordMap.get(b.id)
-    const rank = (r: TodayRecord | undefined) => {
-      if (!r) return 3
-      if (r.risk_level === 'urgent') return 0
-      if (r.status === 'submitted') return 1
-      return 2
-    }
-    return rank(ra) - rank(rb) || a.name.localeCompare(b.name, 'ko')
-  })
+  /* ── 기록 맵 ── */
+  const recordMap = useMemo(() => {
+    const m = new Map<number, TodayRecord>()
+    stats?.records.forEach(r => m.set(r.patient_id, r))
+    return m
+  }, [stats])
 
-  const pendingCount   = stats?.pending_count  ?? 0
-  const approvedCount  = stats?.approved_count ?? 0
+  /* ── 검색 필터 ── */
+  const searchFiltered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return patients
+    return patients.filter(p => p.name.toLowerCase().includes(q))
+  }, [patients, searchQuery])
+
+  /* ── 상태 필터 ── */
+  const statusFiltered = useMemo(() => {
+    return searchFiltered.filter(p => {
+      const rec = recordMap.get(p.id)
+      if (statusFilter === 'submitted') return rec?.status === 'submitted'
+      if (statusFilter === 'reviewed')  return rec?.status === 'reviewed'
+      if (statusFilter === 'none')      return !rec
+      return true
+    })
+  }, [searchFiltered, recordMap, statusFilter])
+
+  /* ── 정렬 ── */
+  const displayPatients = useMemo(
+    () => sortedPatientList(statusFiltered, recordMap),
+    [statusFiltered, recordMap]
+  )
+
+  /* ── 통계 ── */
   const totalPatients  = patients.length
   const totalSubmitted = stats?.total_submitted ?? 0
+  const pendingCount   = stats?.pending_count   ?? 0
+  const approvedCount  = stats?.approved_count  ?? 0
   const allRecords     = stats?.records ?? []
 
-  return (
-    <main style={{ padding: '28px 32px' }}>
+  /* ── 모드 판단 ── */
+  const isSearchMode   = searchQuery.trim().length > 0
+  const isCombinedMode = isSearchMode && !isToday(currentDate)
 
-      {/* 헤더 */}
+  /* ── 탭별 카운트 ── */
+  const tabCounts: Record<StatusFilter, number> = useMemo(() => {
+    return {
+      all:       searchFiltered.length,
+      submitted: searchFiltered.filter(p => recordMap.get(p.id)?.status === 'submitted').length,
+      reviewed:  searchFiltered.filter(p => recordMap.get(p.id)?.status === 'reviewed').length,
+      none:      searchFiltered.filter(p => !recordMap.get(p.id)).length,
+    }
+  }, [searchFiltered, recordMap])
+
+  /* ── 테이블 제목 ── */
+  const tableTitle = () => {
+    if (isCombinedMode) return `"${searchQuery}" 검색 · ${toDateStr(currentDate)} 기록`
+    if (isSearchMode)   return `"${searchQuery}" 검색 결과 — 오늘 기준`
+    if (isToday(currentDate)) return '오늘 기록'
+    return `${toDateStr(currentDate)} 기록`
+  }
+
+  /* ── 빈 상태 메시지 ── */
+  const emptyMessage = () => {
+    if (isSearchMode && searchFiltered.length === 0)
+      return `"${searchQuery}"와 일치하는 환자가 없습니다`
+    if (statusFilter !== 'all' && displayPatients.length === 0) {
+      const labels: Record<StatusFilter, string> = { all: '', submitted: '미검토', reviewed: '승인완료', none: '미제출' }
+      return `${labels[statusFilter]} 상태의 환자가 없습니다`
+    }
+    if (patients.length === 0) return '등록된 환자가 없습니다'
+    return '해당 날짜에 데이터가 없습니다'
+  }
+
+  return (
+    <main style={{ padding: '28px 32px', minHeight: '100vh' }}>
+
+      {/* ── 헤더 ── */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>대시보드</h1>
         <div style={{ fontSize: 13, color: C.textMuted, marginTop: 3 }}>{formatDateKo(currentDate)}</div>
       </div>
 
-      {/* 통계 카드 4개 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard icon="📋" label="제출된 기록" value={totalSubmitted} sub="건" />
-        <StatCard icon="🔍" label="미검토" value={pendingCount} sub="건" color={pendingCount > 0 ? C.warning : undefined} />
-        <StatCard icon="✅" label="승인 완료" value={approvedCount} sub="건" color={C.success} />
-        <StatCard icon="👥" label="총 환자 수" value={totalPatients} sub="명" />
-      </div>
+      {/* ── 통계 카드 ── */}
+      {!isSearchMode && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 22 }}>
+          <StatCard icon="📋" label="제출된 기록" value={totalSubmitted} sub="건" />
+          <StatCard icon="🔍" label="미검토" value={pendingCount} sub="건" color={pendingCount > 0 ? C.warning : undefined} />
+          <StatCard icon="✅" label="승인 완료" value={approvedCount} sub="건" color={C.success} />
+          <StatCard icon="👥" label="총 환자 수" value={totalPatients} sub="명" />
+        </div>
+      )}
 
-      {/* 2열 레이아웃: 환자 테이블 (좌) + 사이드패널 (우) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20, alignItems: 'start' }}>
+      {/* ── 검색 모드 배너 ── */}
+      {isSearchMode && (
+        <div style={{
+          background: C.primaryLight, border: `1px solid ${C.primaryDark}20`,
+          borderRadius: 10, padding: '10px 16px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ fontSize: 13, color: C.primaryDark }}>
+            {isCombinedMode
+              ? <>📅 <b>{toDateStr(currentDate)}</b> · 🔍 <b>"{searchQuery}"</b> 검색 중 — {searchFiltered.length}명 일치</>
+              : <>🔍 <b>"{searchQuery}"</b> 검색 중 — 오늘 기준, {searchFiltered.length}명 일치</>
+            }
+          </div>
+          <button
+            onClick={() => { setSearchQuery(''); setStatusFilter('all') }}
+            style={{ fontSize: 12, color: C.primaryDark, background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600, padding: '2px 6px' }}
+          >✕ 검색 초기화</button>
+        </div>
+      )}
+
+      {/* ── 2열 레이아웃 ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 268px', gap: 20, alignItems: 'start' }}>
 
         {/* ── 좌: 환자 테이블 ── */}
         <div>
-          <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.text }}>
-              {isToday(currentDate) ? '오늘 제출된 기록' : `${toDateStr(currentDate)} 기록`}
-            </h2>
-            {loading && <span style={{ fontSize: 12, color: C.textMuted }}>불러오는 중...</span>}
+
+          {/* 테이블 상단 바 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+
+            {/* 검색 인풋 */}
+            <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.textMuted, pointerEvents: 'none' }}>🔍</span>
+              <input
+                ref={searchRef}
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setStatusFilter('all') }}
+                placeholder="환자 이름 검색..."
+                style={{
+                  width: '100%', paddingLeft: 32, paddingRight: searchQuery ? 32 : 12,
+                  paddingTop: 8, paddingBottom: 8,
+                  border: `1px solid ${searchQuery ? 'var(--capd-primary)' : C.border}`,
+                  borderRadius: 9, fontSize: 13, outline: 'none',
+                  background: '#fff', color: C.text, fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                  boxShadow: searchQuery ? '0 0 0 3px var(--capd-primary-light)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setStatusFilter('all'); searchRef.current?.focus() }}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, fontSize: 14, padding: 0 }}
+                >✕</button>
+              )}
+            </div>
+
+            {/* 상태 필터 탭 */}
+            <div style={{ display: 'flex', gap: 4 }}>
+              {FILTER_TABS.map(tab => {
+                const active = statusFilter === tab.key
+                const cnt = tabCounts[tab.key]
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setStatusFilter(tab.key)}
+                    style={{
+                      padding: '6px 11px', borderRadius: 8, border: `1px solid ${active ? 'var(--capd-primary)' : C.border}`,
+                      background: active ? 'var(--capd-primary)' : '#fff',
+                      color: active ? '#fff' : C.textMuted,
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      fontFamily: 'inherit', transition: 'all 0.12s',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}
+                  >
+                    {tab.label}
+                    <span style={{
+                      fontSize: 10, fontWeight: 700,
+                      background: active ? 'rgba(255,255,255,0.25)' : C.bg,
+                      color: active ? '#fff' : C.textMuted,
+                      borderRadius: 10, padding: '1px 5px',
+                    }}>{cnt}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* 테이블 제목 + 로딩 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted }}>{tableTitle()}</span>
+              {loading && <span style={{ fontSize: 11, color: C.textLight }}>⏳</span>}
+            </div>
           </div>
 
+          {/* 테이블 */}
           {error ? (
-            <div style={{ padding: '20px 16px', color: C.danger, fontSize: 13 }}>오류: {error}</div>
+            <div style={{ padding: '20px 16px', color: C.danger, fontSize: 13, background: '#fff', borderRadius: 14, border: `1px solid ${C.border}` }}>
+              오류: {error}
+            </div>
           ) : (
             <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: C.bg }}>
-                    {['환자명', '전화번호', '상태', '위험도', 'AI 질문', 'AI 요약', ''].map((h, i) => (
-                      <th key={i} style={{
-                        padding: '11px 14px', textAlign: 'left',
-                        fontSize: 11, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap',
-                      }}>{h}</th>
+                    {['환자명', '환자번호', '전화번호', '상태', '위험도', 'AI 질문', 'AI 요약', ''].map((h, i) => (
+                      <th key={i} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedPatients.length === 0 ? (
+                  {displayPatients.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '32px 16px', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
-                        {loading ? '불러오는 중...' : '등록된 환자가 없습니다.'}
+                      <td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
+                        <div style={{ fontSize: 28, marginBottom: 8 }}>
+                          {isSearchMode ? '🔍' : '📋'}
+                        </div>
+                        {loading ? '불러오는 중...' : emptyMessage()}
                       </td>
                     </tr>
-                  ) : sortedPatients.map(p => {
+                  ) : displayPatients.map(p => {
                     const rec = recordMap.get(p.id) ?? null
+                    const hasRecord = !!rec
+
                     return (
                       <tr
                         key={p.id}
@@ -467,67 +546,76 @@ export default function DashboardPage() {
                           borderTop: `1px solid ${C.border}`,
                           background: hoveredRow === p.id ? C.bg : '#fff',
                           transition: 'background 0.1s',
-                          cursor: rec ? 'pointer' : 'default',
+                          cursor: hasRecord ? 'pointer' : 'default',
                         }}
                         onMouseEnter={() => setHoveredRow(p.id)}
                         onMouseLeave={() => setHoveredRow(null)}
                         onClick={() => {
-                          if (rec) navigate('/doctor/record', { state: { recordId: rec.record_id, patientName: p.name } })
+                          if (hasRecord) navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } })
                         }}
                       >
-                        <td style={{ padding: '12px 14px', fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</td>
-                        <td style={{ padding: '12px 14px', fontSize: 12, color: C.textMuted }}>{p.phone_number}</td>
-                        <td style={{ padding: '12px 14px' }}>
+                        {/* 환자명 (하이라이트) */}
+                        <td style={{ padding: '12px 12px', fontWeight: 700, fontSize: 14, color: C.text }}>
+                          <Highlight text={p.name} query={searchQuery} />
+                        </td>
+
+                        {/* 환자번호 */}
+                        <td style={{ padding: '12px 12px' }}>
+                          <span style={{ fontSize: 11, background: C.bg, color: C.textMuted, borderRadius: 5, padding: '2px 7px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                            #{String(p.id).padStart(4, '0')}
+                          </span>
+                        </td>
+
+                        {/* 전화번호 */}
+                        <td style={{ padding: '12px 12px', fontSize: 12, color: C.textMuted }}>{p.phone_number}</td>
+
+                        {/* 상태 */}
+                        <td style={{ padding: '12px 12px' }}>
                           {rec ? <StatusBadge status={rec.status} /> : <span style={{ fontSize: 12, color: C.textLight }}>미제출</span>}
                         </td>
-                        <td style={{ padding: '12px 14px' }}>
+
+                        {/* 위험도 */}
+                        <td style={{ padding: '12px 12px' }}>
                           <RiskBadge level={rec?.risk_level ?? null} />
                         </td>
-                        <td style={{ padding: '12px 14px' }}>
+
+                        {/* 미검토 AI 질문 수 */}
+                        <td style={{ padding: '12px 12px' }}>
                           {rec && rec.unreviewed_ai_count > 0 ? (
                             <span
                               onClick={e => { e.stopPropagation(); navigate('/doctor/ai-questions') }}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 4,
-                                background: C.warningLight, color: C.warning,
-                                border: `1px solid #fcd34d`,
-                                borderRadius: 6, padding: '3px 8px',
-                                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                              }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: C.warningLight, color: C.warning, border: `1px solid #fcd34d`, borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
                             >⚡ {rec.unreviewed_ai_count}건</span>
                           ) : (
                             <span style={{ fontSize: 12, color: C.textLight }}>—</span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 14px', maxWidth: 220 }}>
+
+                        {/* AI 요약 */}
+                        <td style={{ padding: '12px 12px', maxWidth: 200 }}>
                           {rec?.ai_summary ? (
-                            <p style={{ margin: 0, fontSize: 11, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                            <p style={{ margin: 0, fontSize: 11, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
                               {rec.ai_summary}
                             </p>
                           ) : (
                             <span style={{ fontSize: 12, color: C.textLight }}>—</span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          {rec ? (
+
+                        {/* 액션 버튼 */}
+                        <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', gap: 5 }}>
+                            {hasRecord && (
+                              <button
+                                style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.primaryLight, color: C.primaryDark, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                                onClick={e => { e.stopPropagation(); navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } }) }}
+                              >기록 보기</button>
+                            )}
                             <button
-                              style={{
-                                padding: '5px 12px', border: `1px solid ${C.border}`,
-                                borderRadius: 8, background: C.primaryLight, color: C.primaryDark,
-                                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                              }}
-                              onClick={e => { e.stopPropagation(); navigate('/doctor/record', { state: { recordId: rec.record_id, patientName: p.name } }) }}
-                            >보기</button>
-                          ) : (
-                            <button
-                              style={{
-                                padding: '5px 12px', border: `1px solid ${C.border}`,
-                                borderRadius: 8, background: '#f9fafb', color: C.textMuted,
-                                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                              }}
+                              style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 7, background: '#f9fafb', color: C.textMuted, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
                               onClick={e => { e.stopPropagation(); navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } }) }}
-                            >과거 기록</button>
-                          )}
+                            >전체 기록</button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -539,42 +627,45 @@ export default function DashboardPage() {
         </div>
 
         {/* ── 우: 사이드 패널 ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* 캘린더 카드 */}
-          <div style={{
-            background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`,
-            padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>📅 날짜 선택</div>
-            <MiniCalendar
-              selectedDate={currentDate}
-              onSelect={(d) => setCurrentDate(d)}
-            />
+          {/* 캘린더 */}
+          <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 날짜 선택</div>
+            <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
           </div>
 
-          {/* 위험도 분포 카드 */}
-          <div style={{
-            background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`,
-            padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>
-              🎯 위험도 분포
-              <span style={{ fontSize: 11, fontWeight: 400, color: C.textMuted, marginLeft: 6 }}>
-                (AI 분석 완료 {allRecords.filter(r => r.risk_level).length}명)
-              </span>
+          {/* 위험도 분포 */}
+          {!isSearchMode && (
+            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>
+                🎯 위험도 분포
+                <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 400, marginLeft: 5 }}>AI 분석 {allRecords.filter(r => r.risk_level).length}명</span>
+              </div>
+              <RiskBar records={allRecords} />
             </div>
-            <RiskDonut records={allRecords} />
-          </div>
+          )}
 
-          {/* 제출율 카드 */}
-          <div style={{
-            background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`,
-            padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>📊 기록 제출율</div>
-            <SubmitRate submitted={totalSubmitted} total={totalPatients} />
-          </div>
+          {/* 제출율 */}
+          {!isSearchMode && (
+            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📊 기록 제출율</div>
+              <SubmitGauge submitted={totalSubmitted} total={totalPatients} />
+            </div>
+          )}
+
+          {/* 검색 모드일 때: 안내 패널 */}
+          {isSearchMode && (
+            <div style={{ background: C.primaryLight, borderRadius: 14, border: `1px solid ${C.primaryDark}20`, padding: '14px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.primaryDark, marginBottom: 8 }}>💡 검색 팁</div>
+              <div style={{ fontSize: 11, color: C.primaryDark, lineHeight: 1.7 }}>
+                • 환자 이름으로 필터링됩니다<br />
+                • <b>전체 기록</b> 버튼으로 해당 환자의 모든 기록을 확인할 수 있어요<br />
+                • 캘린더로 날짜를 선택하면 그 날의 기록을 함께 확인할 수 있어요<br />
+                • <b>환자번호(#0001)</b>로 동명이인을 구별하세요
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
