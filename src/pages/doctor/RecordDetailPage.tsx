@@ -30,12 +30,13 @@ interface ExchangeRecord {
   ultrafiltration:        number | null
 }
 interface SurveyResponse {
-  question_type: string
-  question_text: string
-  reason:        string | null
-  choice:        string | null
-  text_answer:   string | null
-  answered:      boolean
+  question_type:      string
+  question_text:      string
+  question_item_type: string | null   // yes_no | single_select | multi_select | short_text
+  reason:             string | null
+  choice:             string | null
+  text_answer:        string | null
+  answered:           boolean
 }
 interface EMR { S: string; O: string; A: string; P: string }
 interface RecordDetail {
@@ -341,15 +342,34 @@ export default function RecordDetailPage() {
             .map((item, i) => (
               <div key={i} style={{ background: C.bg, borderRadius: 10, padding: '12px 14px' }}>
                 <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>{item.question_text}</div>
-                {item.answered ? (
-                  <span style={{
-                    background: item.choice === 'no' ? C.successLight : C.dangerLight,
-                    color: item.choice === 'no' ? C.success : C.danger,
-                    borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600,
-                  }}>
-                    {item.choice === 'yes' ? '예' : item.choice === 'no' ? '아니오' : '—'}
-                  </span>
-                ) : (
+                {item.answered ? (() => {
+                  // yes_no: choice 기준 표시
+                  if (item.choice === 'yes' || item.choice === 'no') {
+                    return (
+                      <span style={{
+                        background: item.choice === 'no' ? C.successLight : C.dangerLight,
+                        color: item.choice === 'no' ? C.success : C.danger,
+                        borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600,
+                      }}>
+                        {item.choice === 'yes' ? '예' : '아니오'}
+                        {item.text_answer ? ` — ${item.text_answer}` : ''}
+                      </span>
+                    )
+                  }
+                  // single_select / multi_select / short_text: text_answer 표시
+                  if (item.text_answer) {
+                    return (
+                      <span style={{
+                        background: C.primaryLight, color: C.primaryDark,
+                        borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600,
+                        display: 'inline-block', wordBreak: 'break-word' as const,
+                      }}>
+                        {item.text_answer}
+                      </span>
+                    )
+                  }
+                  return <span style={{ fontSize: 12, color: C.textMuted }}>—</span>
+                })() : (
                   <span style={{ fontSize: 12, color: C.warning, fontWeight: 600 }}>⏳ 미답변</span>
                 )}
               </div>
