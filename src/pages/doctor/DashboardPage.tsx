@@ -297,15 +297,15 @@ export default function DashboardPage() {
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all')
   const searchRef = useRef<HTMLInputElement>(null)
 
-  /* ── 데이터 fetch ── */
+  /* ── 선택 날짜 데이터 fetch ── */
   const fetchData = useCallback((targetDate: Date) => {
     const token = localStorage.getItem('access_token')
     if (!token) { navigate('/login'); return }
     setLoading(true); setError('')
     const dp = toDateStr(targetDate)
     Promise.all([
-      fetch(`${API}/api/v1/patients`,                      { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${API}/api/v1/dashboard?record_date=${dp}`,   { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${API}/api/v1/patients`,                    { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${API}/api/v1/dashboard?record_date=${dp}`, { headers: { Authorization: `Bearer ${token}` } }),
     ])
       .then(async ([pRes, dRes]) => {
         if (pRes.status === 401 || dRes.status === 401) { localStorage.clear(); navigate('/login'); return }
@@ -320,7 +320,7 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(currentDate) }, [fetchData, currentDate])
 
-  /* ── 날짜 선택 → statusFilter 초기화 + fetch ── */
+  /* ── 날짜 선택 ── */
   const handleSelectDate = (d: Date) => {
     setCurrentDate(d)
     setStatusFilter('all')
@@ -554,9 +554,21 @@ export default function DashboardPage() {
                           if (hasRecord) navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } })
                         }}
                       >
-                        {/* 환자명 (하이라이트) */}
-                        <td style={{ padding: '12px 12px', fontWeight: 700, fontSize: 14, color: C.text }}>
-                          <Highlight text={p.name} query={searchQuery} />
+                        {/* 환자명 — 클릭 시 전체 기록 이동 */}
+                        <td
+                          style={{ padding: '12px 12px', fontWeight: 700, fontSize: 14 }}
+                          onClick={e => {
+                            e.stopPropagation()
+                            navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } })
+                          }}
+                        >
+                          <span style={{
+                            color: C.primaryDark, cursor: 'pointer',
+                            borderBottom: `1px dashed ${C.primaryDark}60`,
+                            paddingBottom: 1,
+                          }}>
+                            <Highlight text={p.name} query={searchQuery} />
+                          </span>
                         </td>
 
                         {/* 환자번호 */}
@@ -602,20 +614,16 @@ export default function DashboardPage() {
                           )}
                         </td>
 
-                        {/* 액션 버튼 */}
-                        <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', gap: 5 }}>
-                            {hasRecord && (
-                              <button
-                                style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.primaryLight, color: C.primaryDark, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                                onClick={e => { e.stopPropagation(); navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } }) }}
-                              >기록 보기</button>
-                            )}
+                        {/* 액션: 해당 날짜 기록 보기만 */}
+                        <td style={{ padding: '12px 12px' }}>
+                          {hasRecord ? (
                             <button
-                              style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 7, background: '#f9fafb', color: C.textMuted, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                              onClick={e => { e.stopPropagation(); navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } }) }}
-                            >전체 기록</button>
-                          </div>
+                              style={{ padding: '4px 12px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.primaryLight, color: C.primaryDark, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                              onClick={e => { e.stopPropagation(); navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } }) }}
+                            >기록 보기 →</button>
+                          ) : (
+                            <span style={{ fontSize: 11, color: C.textLight }}>—</span>
+                          )}
                         </td>
                       </tr>
                     )
