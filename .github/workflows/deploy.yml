@@ -92,7 +92,7 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --no-deps frontend
 
             echo "==> Cleaning up old images..."
-            docker image prune -f
+            docker image prune -f || true
 
             echo "==> Deploy complete!"
             docker ps --filter "name=capd_frontend"
