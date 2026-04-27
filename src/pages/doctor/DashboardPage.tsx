@@ -283,6 +283,95 @@ function sortedPatientList(patients: PatientInfo[], recordMap: Map<number, Today
   })
 }
 
+const MOBILE_BP = 768
+
+/* ═══════════════ 환자 카드 (모바일용) ═══════════════ */
+function PatientCard({
+  patient, record, searchQuery, onCardClick, onNameClick,
+}: {
+  patient: PatientInfo
+  record: TodayRecord | null
+  searchQuery: string
+  onCardClick: () => void
+  onNameClick: (e: React.MouseEvent) => void
+}) {
+  const rawSummary = record?.ai_summary ?? null
+  const summary = rawSummary
+    ? (rawSummary.trim().startsWith('{')
+        ? (() => { try { return JSON.parse(rawSummary).ai_summary ?? null } catch { return null } })()
+        : rawSummary)
+    : null
+
+  return (
+    <div
+      onClick={onCardClick}
+      style={{
+        background: '#fff',
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        padding: '14px 16px',
+        cursor: record ? 'pointer' : 'default',
+        marginBottom: 8,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      }}
+    >
+      {/* 1행: 이름 + 뱃지들 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          onClick={onNameClick}
+          style={{
+            fontWeight: 700, fontSize: 15, color: C.primaryDark,
+            borderBottom: `1px dashed ${C.primaryDark}60`,
+            paddingBottom: 1, cursor: 'pointer', flexShrink: 0,
+          }}
+        >
+          <Highlight text={patient.name} query={searchQuery} />
+        </span>
+        <span style={{ fontSize: 11, color: C.textMuted, background: C.bg, borderRadius: 5, padding: '2px 6px', fontWeight: 600 }}>
+          #{String(patient.id).padStart(4, '0')}
+        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {record ? <StatusBadge status={record.status} /> : (
+            <span style={{ background: '#f3f4f6', color: C.textMuted, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>미제출</span>
+          )}
+          <RiskBadge level={record?.risk_level ?? null} />
+        </div>
+      </div>
+
+      {/* 2행: 전화번호 + AI질문 수 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: summary ? 6 : 0 }}>
+        <span style={{ fontSize: 12, color: C.textMuted }}>{patient.phone_number}</span>
+        {record && record.unreviewed_ai_count > 0 && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            background: C.warningLight, color: C.warning,
+            border: `1px solid #fcd34d`, borderRadius: 6,
+            padding: '2px 7px', fontSize: 11, fontWeight: 600,
+          }}>
+            ⚡ AI 질문 {record.unreviewed_ai_count}건
+          </span>
+        )}
+      </div>
+
+      {/* 3행: AI 요약 */}
+      {summary && (
+        <div style={{
+          fontSize: 12, color: C.textMuted,
+          background: C.bg, borderRadius: 7,
+          padding: '7px 10px',
+          overflow: 'hidden',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          lineHeight: 1.5,
+        }}>
+          {summary}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ═══════════════ 메인 컴포넌트 ═══════════════ */
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -295,7 +384,14 @@ export default function DashboardPage() {
   const [currentDate,   setCurrentDate]   = useState<Date>(new Date())
   const [searchQuery,   setSearchQuery]   = useState('')
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all')
+  const [isMobile,      setIsMobile]      = useState(window.innerWidth < MOBILE_BP)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < MOBILE_BP)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   /* ── 선택 날짜 데이터 fetch ── */
   const fetchData = useCallback((targetDate: Date) => {
@@ -395,6 +491,178 @@ export default function DashboardPage() {
     return '해당 날짜에 데이터가 없습니다'
   }
 
+  /* ── 공통 렌더 조각 ── */
+  const SearchBar = (
+    <div style={{ position: 'relative' }}>
+      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.textMuted, pointerEvents: 'none' }}>🔍</span>
+      <input
+        ref={searchRef}
+        value={searchQuery}
+        onChange={e => { setSearchQuery(e.target.value); setStatusFilter('all') }}
+        placeholder="환자 이름 검색..."
+        style={{
+          width: '100%', paddingLeft: 32, paddingRight: searchQuery ? 32 : 12,
+          paddingTop: 8, paddingBottom: 8,
+          border: `1px solid ${searchQuery ? 'var(--capd-primary)' : C.border}`,
+          borderRadius: 9, fontSize: 13, outline: 'none',
+          background: '#fff', color: C.text, fontFamily: 'inherit',
+          boxSizing: 'border-box',
+          boxShadow: searchQuery ? '0 0 0 3px var(--capd-primary-light)' : 'none',
+          transition: 'all 0.15s',
+        }}
+      />
+      {searchQuery && (
+        <button
+          onClick={() => { setSearchQuery(''); setStatusFilter('all'); searchRef.current?.focus() }}
+          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, fontSize: 14, padding: 0 }}
+        >✕</button>
+      )}
+    </div>
+  )
+
+  const FilterTabs = (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {FILTER_TABS.map(tab => {
+        const active = statusFilter === tab.key
+        const cnt = tabCounts[tab.key]
+        return (
+          <button
+            key={tab.key}
+            onClick={() => setStatusFilter(tab.key)}
+            style={{
+              padding: '6px 11px', borderRadius: 8, border: `1px solid ${active ? 'var(--capd-primary)' : C.border}`,
+              background: active ? 'var(--capd-primary)' : '#fff',
+              color: active ? '#fff' : C.textMuted,
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'all 0.12s',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            {tab.label}
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              background: active ? 'rgba(255,255,255,0.25)' : C.bg,
+              color: active ? '#fff' : C.textMuted,
+              borderRadius: 10, padding: '1px 5px',
+            }}>{cnt}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const SidePanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 날짜 선택</div>
+        <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
+      </div>
+      {!isSearchMode && (
+        <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>
+            🎯 위험도 분포
+            <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 400, marginLeft: 5 }}>AI 분석 {allRecords.filter(r => r.risk_level).length}명</span>
+          </div>
+          <RiskBar records={allRecords} />
+        </div>
+      )}
+      {!isSearchMode && (
+        <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📊 기록 제출율</div>
+          <SubmitGauge submitted={totalSubmitted} total={totalPatients} />
+        </div>
+      )}
+    </div>
+  )
+
+  /* ─────────── 모바일 렌더 ─────────── */
+  if (isMobile) {
+    return (
+      <main style={{ padding: '16px', minHeight: '100vh' }}>
+
+        {/* 헤더 */}
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>대시보드</h1>
+          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{formatDateKo(currentDate)}</div>
+        </div>
+
+        {/* 통계 카드 (2×2 그리드) */}
+        {!isSearchMode && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <StatCard icon="📋" label="제출된 기록" value={totalSubmitted} sub="건" />
+            <StatCard icon="🔍" label="미검토" value={pendingCount} sub="건" color={pendingCount > 0 ? C.warning : undefined} />
+            <StatCard icon="✅" label="승인 완료" value={approvedCount} sub="건" color={C.success} />
+            <StatCard icon="👥" label="총 환자 수" value={totalPatients} sub="명" />
+          </div>
+        )}
+
+        {/* 검색 + 필터 */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ marginBottom: 8 }}>{SearchBar}</div>
+          {FilterTabs}
+        </div>
+
+        {/* 검색 모드 배너 */}
+        {isSearchMode && (
+          <div style={{
+            background: C.primaryLight, border: `1px solid ${C.primaryDark}20`,
+            borderRadius: 10, padding: '8px 12px', marginBottom: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ fontSize: 12, color: C.primaryDark }}>
+              {isCombinedMode
+                ? <><b>{toDateStr(currentDate)}</b> · <b>"{searchQuery}"</b> {searchFiltered.length}명</>
+                : <><b>"{searchQuery}"</b> {searchFiltered.length}명 (오늘 기준)</>
+              }
+            </div>
+            <button onClick={() => { setSearchQuery(''); setStatusFilter('all') }}
+              style={{ fontSize: 12, color: C.primaryDark, background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600 }}>✕</button>
+          </div>
+        )}
+
+        {/* 제목 + 로딩 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted }}>{tableTitle()}</span>
+          {loading && <span style={{ fontSize: 11, color: C.textLight }}>⏳ 불러오는 중...</span>}
+        </div>
+
+        {/* 환자 카드 목록 */}
+        {error ? (
+          <div style={{ padding: '16px', color: C.danger, fontSize: 13, background: '#fff', borderRadius: 12, border: `1px solid ${C.border}` }}>
+            오류: {error}
+          </div>
+        ) : displayPatients.length === 0 ? (
+          <div style={{ padding: '32px 16px', textAlign: 'center', color: C.textMuted, fontSize: 13, background: '#fff', borderRadius: 12, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>{isSearchMode ? '🔍' : '📋'}</div>
+            {loading ? '불러오는 중...' : emptyMessage()}
+          </div>
+        ) : displayPatients.map(p => {
+          const rec = recordMap.get(p.id) ?? null
+          return (
+            <PatientCard
+              key={p.id}
+              patient={p}
+              record={rec}
+              searchQuery={searchQuery}
+              onCardClick={() => {
+                if (rec) navigate('/doctor/record', { state: { recordId: rec.record_id, patientName: p.name } })
+              }}
+              onNameClick={e => {
+                e.stopPropagation()
+                navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } })
+              }}
+            />
+          )
+        })}
+
+        {/* 하단 사이드 패널 (캘린더/통계) */}
+        <div style={{ marginTop: 16 }}>{SidePanel}</div>
+
+      </main>
+    )
+  }
+
+  /* ─────────── 데스크톱 렌더 ─────────── */
   return (
     <main style={{ padding: '28px 32px', minHeight: '100vh' }}>
 
