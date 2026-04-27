@@ -13,9 +13,10 @@ const C = {
 }
 
 const navItems = [
-  { id: 'dashboard', label: '대시보드',      icon: '◈',  path: '/doctor' },
-  { id: 'approve',   label: '환자 가입 승인', icon: '👥', path: '/doctor/approve' },
-  { id: 'questions', label: '공통 질문',      icon: '❓', path: '/doctor/common-questions' },
+  { id: 'dashboard',    label: '대시보드',      icon: '◈',  path: '/doctor' },
+  { id: 'approve',      label: '환자 가입 승인', icon: '👥', path: '/doctor/approve' },
+  { id: 'questions',    label: '공통 질문',      icon: '❓', path: '/doctor/common-questions' },
+  { id: 'ai-questions', label: 'AI 질문 검토',   icon: '🤖', path: '/doctor/ai-questions' },
 ]
 
 interface DoctorLayoutProps {
