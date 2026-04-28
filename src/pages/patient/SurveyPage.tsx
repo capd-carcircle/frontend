@@ -271,6 +271,8 @@ function AIQuestionItem({ question, answer, onChange }: {
           <YesNoButtons
             value={answer.choice}
             onChange={(v) => onChange(question.question_id, 'ai', { choice: v })}
+            positiveLabel={question.options?.[0] ?? undefined}
+            negativeLabel={question.options?.[1] ?? undefined}
           />
           <input
             type="text"
@@ -284,7 +286,7 @@ function AIQuestionItem({ question, answer, onChange }: {
         </div>
       )}
 
-      {qType === 'single_select' && question.options && (
+      {qType === 'single_select' && question.options && question.options.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {question.options.map((opt) => (
             <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
@@ -301,7 +303,7 @@ function AIQuestionItem({ question, answer, onChange }: {
         </div>
       )}
 
-      {qType === 'multi_select' && question.options && (
+      {qType === 'multi_select' && question.options && question.options.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {question.options.map((opt) => {
             const checked = answer.selected.includes(opt)
@@ -323,6 +325,19 @@ function AIQuestionItem({ question, answer, onChange }: {
             )
           })}
         </div>
+      )}
+
+      {/* options 없는 select 타입 폴백 — short_text로 렌더 */}
+      {(qType === 'single_select' || qType === 'multi_select') && (!question.options || question.options.length === 0) && (
+        <input
+          type="text"
+          placeholder="답변을 입력해주세요"
+          style={{ ...textInputStyle, width: '100%', flex: 'unset', minWidth: 'unset' }}
+          value={answer.text}
+          onChange={e => onChange(question.question_id, 'ai', { text: e.target.value })}
+          onFocus={e => { e.target.style.borderColor = 'var(--capd-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(123,107,181,0.10)' }}
+          onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
+        />
       )}
 
       {qType === 'short_text' && (
@@ -366,10 +381,16 @@ function QuestionLabel({ text, hasCheck }: { text: string; hasCheck: boolean }) 
   )
 }
 
-function YesNoButtons({ value, onChange }: {
+function YesNoButtons({ value, onChange, positiveLabel, negativeLabel }: {
   value: 'yes' | 'no' | null
   onChange: (v: 'yes' | 'no') => void
+  positiveLabel?: string
+  negativeLabel?: string
 }) {
+  const labels: Record<'yes' | 'no', string> = {
+    yes: positiveLabel ?? '예',
+    no:  negativeLabel ?? '아니오',
+  }
   return (
     <>
       {(['yes', 'no'] as const).map(v => (
@@ -377,7 +398,7 @@ function YesNoButtons({ value, onChange }: {
           key={v}
           type="button"
           style={{
-            height: 34, minWidth: v === 'yes' ? 64 : 80, padding: '0 14px',
+            height: 34, minWidth: 64, padding: '0 14px',
             borderRadius: 8, border: 'none', cursor: 'pointer',
             fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
             backgroundColor: value === v ? 'var(--capd-primary)' : '#e5e7eb',
@@ -385,7 +406,7 @@ function YesNoButtons({ value, onChange }: {
             boxShadow: value === v ? '0 2px 6px rgba(123,107,181,0.3)' : 'none',
           }}
           onClick={() => onChange(v)}
-        >{v === 'yes' ? '예' : '아니오'}</button>
+        >{labels[v]}</button>
       ))}
     </>
   )
