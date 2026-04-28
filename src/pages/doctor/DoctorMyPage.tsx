@@ -358,4 +358,15 @@ export default function DoctorMyPage() {
         </>
       ) : (
         /* ── 데스크톱: 2열 ── */
-        <div style={{ display: 'flex', gap: 20, ali
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+          <div style={{ flex: '0 0 260px' }}>
+            <ProfileCard />
+          </div>
+          <div style={{ flex: 1 }}>
+            <EditSections />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -392,4 +392,20 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
                 marginTop: 4,
                 borderTop: `1px solid ${C.border}`,
                 cursor: 'pointer',
-                display: 'flex', 
+                display: 'flex',                 display: 'flex', alignItems: 'center', gap: 10,
+                fontSize: 13, color: C.textMuted,
+              }}
+            >
+              <span>↩</span> 로그아웃
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 메인 콘텐츠 */}
+      <div style={{ paddingTop: HEADER_H, minHeight: '100vh' }}>
+        {children}
+      </div>
+    </div>
+  )
+}

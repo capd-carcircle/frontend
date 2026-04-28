@@ -352,4 +352,19 @@ export default function RecordListPage() {
                     {recs.map(rec => (
                       <RecordItem key={rec.id} record={rec} isOpen={openId === rec.id}
                         onToggle={() => setOpenId(prev => prev === rec.id ? null : rec.id)} />
-                 
+                                     ))}
+                  </MonthGroup>
+                ))}
+              </>
+            ) : !loading && records.length <= (todayRec ? 1 : 0) && (
+              <div style={{ textAlign: 'center', paddingTop: 32 }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
+                <p style={{ color: C.textMuted, fontSize: 13 }}>지난 기록이 없어요</p>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
