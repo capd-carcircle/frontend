@@ -32,6 +32,9 @@ export default function SurveyDonePage() {
           ✅
         </div>
 
+        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>
+          {localStorage.getItem('user_name') ?? ''}님
+        </p>
         <p style={{ fontSize: 20, fontWeight: 800, color: '#1a1a2e', marginBottom: 8, letterSpacing: '-0.3px' }}>
           제출 완료!
         </p>

@@ -42,7 +42,11 @@ interface PatientProfile {
 
 function calcAge(birth_date: string | null): number | null {
   if (!birth_date) return null
-  return new Date().getFullYear() - new Date(birth_date).getFullYear()
+  const today = new Date(); const birth = new Date(birth_date + 'T00:00:00')
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
 }
 function patientLabel(name: string, birth_date: string | null, gender: string | null): string {
   const age = calcAge(birth_date)

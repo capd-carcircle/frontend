@@ -184,9 +184,18 @@ export default function RecordDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { recordId, patientName, patientBirthDate, patientGender } = (location.state ?? {}) as { recordId?: number; patientName?: string; patientBirthDate?: string | null; patientGender?: string | null }
-  const calcAge = (b: string | null | undefined) => b ? new Date().getFullYear() - new Date(b).getFullYear() : null
-  const patientLabel = (name: string) => {
-    const age = calcAge(patientBirthDate); const g = patientGender === 'm' ? '남' : patientGender === 'f' ? '여' : null
+  const calcAge = (b: string | null | undefined, ref?: string) => {
+    if (!b) return null
+    const refD  = ref ? new Date(ref + 'T00:00:00') : new Date()
+    const birth = new Date(b + 'T00:00:00')
+    let age = refD.getFullYear() - birth.getFullYear()
+    const m = refD.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && refD.getDate() < birth.getDate())) age--
+    return age
+  }
+  // 기록 날짜 기준으로 나이 계산 (detail 로드 후 사용)
+  const patientLabel = (name: string, recordDate?: string) => {
+    const age = calcAge(patientBirthDate, recordDate); const g = patientGender === 'm' ? '남' : patientGender === 'f' ? '여' : null
     if (age !== null && g) return `${name}(${age}/${g})`
     if (age !== null) return `${name}(${age})`
     if (g) return `${name}(${g})`
@@ -281,7 +290,7 @@ export default function RecordDetailPage() {
         </button>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: C.text, letterSpacing: '-0.03em' }}>
-            {patientLabel(detail.patient_name)} 환자 — {detail.record_date}
+            {patientLabel(detail.patient_name, detail.record_date)} 환자 — {detail.record_date}
           </h1>
           <p style={{ margin: 0, fontSize: 12, color: C.textMuted, marginTop: 2 }}>제출 시간: {submitTime}</p>
         </div>
@@ -353,7 +362,7 @@ export default function RecordDetailPage() {
         {/* AI 요약 */}
         <Card style={{ background: C.primaryLight, border: `1px solid ${C.primaryDark}20`, padding: 20 }}>
           <div style={{ fontWeight: 800, fontSize: 14, color: C.primaryDark, marginBottom: 12 }}>
-            ✦ AI 요약 ({patientLabel(detail.patient_name)})
+            ✦ AI 요약 ({patientLabel(detail.patient_name, detail.record_date)})
           </div>
           <div style={{ fontSize: 13, color: C.primaryDark, lineHeight: 1.8 }}>{parseAiSummary(detail.ai_summary)}</div>
         </Card>

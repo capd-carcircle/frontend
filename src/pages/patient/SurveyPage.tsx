@@ -654,9 +654,10 @@ export default function SurveyPage() {
         >
           ← <span style={{ fontSize: 12 }}>목록</span>
         </button>
-        <span style={{ color: '#fff', fontWeight: 800, fontSize: 17, flex: 1, textAlign: 'center' }}>
-          후속 설문
-        </span>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <span style={{ color: '#fff', fontWeight: 900, fontSize: 14 }}>{localStorage.getItem('user_name') ?? ''}</span>
+          <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginLeft: 6 }}>후속 설문</span>
+        </div>
         <div style={{ width: 56 }} />
       </header>
 

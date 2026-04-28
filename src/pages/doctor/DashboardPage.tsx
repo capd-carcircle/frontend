@@ -41,12 +41,17 @@ interface TodayRecord {
 }
 
 /* ═══════════════ 환자 이름 포맷 (홍길동(36, 남)) ═══════════════ */
-function calcAge(birth_date: string | null): number | null {
+function calcAge(birth_date: string | null, refDate?: string | null): number | null {
   if (!birth_date) return null
-  return new Date().getFullYear() - new Date(birth_date).getFullYear()
+  const ref   = refDate ? new Date(refDate + 'T00:00:00') : new Date()
+  const birth = new Date(birth_date + 'T00:00:00')
+  let age = ref.getFullYear() - birth.getFullYear()
+  const m = ref.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) age--
+  return age
 }
-function patientLabel(name: string, birth_date: string | null, gender: string | null): string {
-  const age = calcAge(birth_date)
+function patientLabel(name: string, birth_date: string | null, gender: string | null, refDate?: string | null): string {
+  const age = calcAge(birth_date, refDate)
   const g = gender === 'm' ? '남' : gender === 'f' ? '여' : null
   if (age !== null && g) return `${name}(${age}/${g})`
   if (age !== null) return `${name}(${age})`
@@ -306,11 +311,12 @@ const MOBILE_BP = 768
 
 /* ═══════════════ 환자 카드 (모바일용) ═══════════════ */
 function PatientCard({
-  patient, record, searchQuery, onCardClick, onNameClick,
+  patient, record, searchQuery, refDate, onCardClick, onNameClick,
 }: {
   patient: PatientInfo
   record: TodayRecord | null
   searchQuery: string
+  refDate: string
   onCardClick: () => void
   onNameClick: (e: React.MouseEvent) => void
 }) {
@@ -344,7 +350,7 @@ function PatientCard({
             paddingBottom: 1, cursor: 'pointer', flexShrink: 0,
           }}
         >
-          <Highlight text={patientLabel(patient.name, patient.birth_date, patient.gender)} query={searchQuery} />
+          <Highlight text={patientLabel(patient.name, patient.birth_date, patient.gender, refDate)} query={searchQuery} />
         </span>
         <span style={{ fontSize: 11, color: C.textMuted, background: C.bg, borderRadius: 5, padding: '2px 6px', fontWeight: 600 }}>
           #{String(patient.id).padStart(4, '0')}
@@ -594,8 +600,9 @@ export default function DashboardPage() {
             patient={p}
             record={rec}
             searchQuery={searchQuery}
+            refDate={toDateStr(currentDate)}
             onCardClick={() => {
-              if (rec) navigate('/doctor/record', { state: { recordId: rec.record_id, patientName: p.name } })
+              if (rec) navigate('/doctor/record', { state: { recordId: rec.record_id, patientName: p.name, patientBirthDate: p.birth_date, patientGender: p.gender } })
             }}
             onNameClick={e => {
               e.stopPropagation()
@@ -648,13 +655,13 @@ export default function DashboardPage() {
                 onMouseEnter={() => setHoveredRow(p.id)}
                 onMouseLeave={() => setHoveredRow(null)}
                 onClick={() => {
-                  if (hasRecord) navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name } })
+                  if (hasRecord) navigate('/doctor/record', { state: { recordId: rec!.record_id, patientName: p.name, patientBirthDate: p.birth_date, patientGender: p.gender } })
                 }}
               >
                 <td style={{ padding: '12px 12px', fontWeight: 700, fontSize: 14 }}
                   onClick={e => { e.stopPropagation(); navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } }) }}>
                   <span style={{ color: C.primaryDark, cursor: 'pointer', borderBottom: `1px dashed ${C.primaryDark}60`, paddingBottom: 1 }}>
-                    <Highlight text={patientLabel(p.name, p.birth_date, p.gender)} query={searchQuery} />
+                    <Highlight text={patientLabel(p.name, p.birth_date, p.gender, toDateStr(currentDate))} query={searchQuery} />
                   </span>
                 </td>
                 <td style={{ padding: '12px 12px' }}>

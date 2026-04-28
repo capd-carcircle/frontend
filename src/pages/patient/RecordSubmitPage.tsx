@@ -170,10 +170,10 @@ export default function RecordSubmitPage() {
       >
         ← <span style={{ fontSize: 12 }}>목록</span>
       </button>
-      <span
-        onClick={() => navigate('/patient')}
-        style={{ color: '#fff', fontWeight: 800, fontSize: 17, letterSpacing: '-0.3px', flex: 1, textAlign: 'center', cursor: 'pointer' }}
-      >CAPD</span>
+      <div style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }} onClick={() => navigate('/patient')}>
+        <span style={{ color: '#fff', fontWeight: 900, fontSize: 14 }}>{localStorage.getItem('user_name') ?? ''}</span>
+        <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginLeft: 6 }}>기록 작성</span>
+      </div>
       <div style={{ width: 56 }} />
     </header>
   )

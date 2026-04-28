@@ -249,9 +249,12 @@ export default function RecordListPage() {
           </div>
           <span style={{ color: '#fff', fontWeight: 900, fontSize: 17, letterSpacing: '-0.04em' }}>CAPD</span>
         </div>
-        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-          나의 기록
-        </span>
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>
+          <span style={{ color: '#fff', fontSize: 14, fontWeight: 900 }}>
+            {localStorage.getItem('user_name') ?? ''}
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginLeft: 6 }}>나의 기록</span>
+        </div>
         {/* 우측 버튼 그룹 */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button

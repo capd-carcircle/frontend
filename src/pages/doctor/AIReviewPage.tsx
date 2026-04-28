@@ -39,9 +39,17 @@ export default function AIReviewPage() {
   const [rejecting, setRejecting]         = useState<number | null>(null);
 
   // 나이/성별 헬퍼
-  const calcAge = (b: string | null) => b ? new Date().getFullYear() - new Date(b).getFullYear() : null
-  const patientLabel = (name: string, birth: string | null, gender: string | null) => {
-    const age = calcAge(birth); const g = gender === 'm' ? '남' : gender === 'f' ? '여' : null
+  const calcAge = (b: string | null, ref?: string) => {
+    if (!b) return null
+    const refD  = ref ? new Date(ref + 'T00:00:00') : new Date()
+    const birth = new Date(b + 'T00:00:00')
+    let age = refD.getFullYear() - birth.getFullYear()
+    const m = refD.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && refD.getDate() < birth.getDate())) age--
+    return age
+  }
+  const patientLabel = (name: string, birth: string | null, gender: string | null, ref?: string) => {
+    const age = calcAge(birth, ref); const g = gender === 'm' ? '남' : gender === 'f' ? '여' : null
     if (age !== null && g) return `${name}(${age}/${g})`
     if (age !== null) return `${name}(${age})`
     if (g) return `${name}(${g})`
@@ -154,7 +162,7 @@ export default function AIReviewPage() {
             >
               {/* 상단: 환자명 + 날짜 + 타입 + 상태 */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: COLOR.text }}>{patientLabel(q.patient_name, q.patient_birth_date, q.patient_gender)}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: COLOR.text }}>{patientLabel(q.patient_name, q.patient_birth_date, q.patient_gender, q.record_date)}</span>
                 <span style={{ fontSize: 11, color: COLOR.textMuted }}>{q.record_date}</span>
                 <span style={{ fontSize: 11, color: COLOR.gray, background: COLOR.grayBg, padding: "1px 7px", borderRadius: 99 }}>
                   {typeLabel(q.question_type)}
