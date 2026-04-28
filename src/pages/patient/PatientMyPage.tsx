@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   getHospitals, getDoctors,
@@ -44,15 +44,12 @@ function InputField({ label, type = 'text', value, onChange, placeholder, autoFo
   onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean
 }) {
   const [focused, setFocused] = useState(false)
-  const composing = useRef(false)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>{label}</label>
       <input
         type={type} value={value} placeholder={placeholder} autoFocus={autoFocus}
-        onChange={e => { if (!composing.current) onChange(e.target.value) }}
-        onCompositionStart={() => { composing.current = true }}
-        onCompositionEnd={e => { composing.current = false; onChange((e.target as HTMLInputElement).value) }}
+        onChange={e => onChange(e.target.value)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={{
           padding: '9px 12px', borderRadius: 9,
