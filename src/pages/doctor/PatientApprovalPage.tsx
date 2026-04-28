@@ -142,7 +142,7 @@ export default function PatientApprovalPage() {
       {/* 헤더 */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>
-          환자 가입 승인
+          담당 연결 관리
         </h1>
       </div>
 

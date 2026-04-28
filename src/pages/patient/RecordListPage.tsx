@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getMyRecords, DailyRecordResponse } from '../../api/records'
+import { getMe } from '../../api/auth'
 
 const C = {
   primary:      'var(--capd-primary)',
@@ -203,8 +204,12 @@ export default function RecordListPage() {
   const [loading,    setLoading]    = useState(true)
   const [openId,     setOpenId]     = useState<number | null>(null)
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set())
+  const [hasDoctor,  setHasDoctor]  = useState<boolean | null>(null)
 
   useEffect(() => {
+    getMe()
+      .then(me => setHasDoctor(!!me.doctor_id))
+      .catch(() => setHasDoctor(null))
     getMyRecords()
       .then(data => {
         setRecords(data)
@@ -269,6 +274,25 @@ export default function RecordListPage() {
       </header>
 
       <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
+        {/* 담당 의사 없음 배너 */}
+        {hasDoctor === false && (
+          <div style={{
+            background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12,
+            padding: '14px 18px', marginBottom: 16,
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+          }}>
+            <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 3 }}>
+                담당 의사가 없습니다
+              </div>
+              <div style={{ fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>
+                현재 담당 의사가 지정되어 있지 않아 기록을 제출할 수 없습니다.<br />
+                병원에 문의하거나 마이페이지에서 담당 연결 요청을 보내주세요.
+              </div>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div style={{ textAlign: 'center', paddingTop: 60 }}>
             <p style={{ color: C.textMuted, fontSize: 14 }}>⏳ 불러오는 중...</p>
@@ -300,18 +324,21 @@ export default function RecordListPage() {
                 )}
               </div>
               <button
-                onClick={() => navigate('/patient/record')}
+                onClick={() => { if (hasDoctor !== false || todayRec) navigate('/patient/record') }}
+                disabled={hasDoctor === false && !todayRec}
                 style={{
                   padding: '10px 18px',
-                  background: todayRec ? C.primary : '#fff',
-                  color: todayRec ? '#fff' : C.primary,
+                  background: (hasDoctor === false && !todayRec) ? '#d1d5db' : todayRec ? C.primary : '#fff',
+                  color: (hasDoctor === false && !todayRec) ? '#6b7280' : todayRec ? '#fff' : C.primary,
                   border: 'none', borderRadius: 10,
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                  fontSize: 13, fontWeight: 700,
+                  cursor: (hasDoctor === false && !todayRec) ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
                   boxShadow: todayRec ? 'none' : '0 2px 6px rgba(0,0,0,0.12)',
                   fontFamily: 'inherit',
                 }}
               >
-                {!todayRec ? '지금 기록하기' : todayRec.status === 'draft' ? '이어서 기록하기' : '기록 보기'}
+                {!todayRec ? (hasDoctor === false ? '제출 불가' : '지금 기록하기') : todayRec.status === 'draft' ? '이어서 기록하기' : '기록 보기'}
               </button>
             </div>
 
@@ -325,19 +352,4 @@ export default function RecordListPage() {
                     {recs.map(rec => (
                       <RecordItem key={rec.id} record={rec} isOpen={openId === rec.id}
                         onToggle={() => setOpenId(prev => prev === rec.id ? null : rec.id)} />
-                    ))}
-                  </MonthGroup>
-                ))}
-              </>
-            ) : !loading && records.length <= (todayRec ? 1 : 0) && (
-              <div style={{ textAlign: 'center', paddingTop: 32 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
-                <p style={{ color: C.textMuted, fontSize: 13 }}>지난 기록이 없어요</p>
-              </div>
-            )}
-          </>
-        )}
-      </main>
-    </div>
-  )
-}
+                 

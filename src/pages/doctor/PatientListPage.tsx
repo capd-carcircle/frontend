@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -30,21 +30,26 @@ interface PatientOverview {
   last_submitted_at:      string | null
   latest_risk_level:      'urgent' | 'caution' | 'normal' | null
   days_since_last_record: number | null
+  is_current:             boolean
+  assignment_started_at:  string | null
+  assignment_ended_at:    string | null
 }
 
 interface DrawerProfile {
-  id:            number
-  name:          string
-  phone_number:  string
-  birth_date:    string | null
-  hospital_name: string | null
-  doctor_name:   string | null
-  self_memo:     string | null
-  joined_at:     string | null
+  id:                 number
+  name:               string
+  phone_number:       string
+  birth_date:         string | null
+  hospital_name:      string | null
+  doctor_name:        string | null
+  self_memo:          string | null
+  joined_at:          string | null
+  is_current_patient: boolean
 }
 
 type RiskFilter = 'all' | 'urgent' | 'caution' | 'normal' | 'no_record'
 type SortKey    = 'name' | 'last_record' | 'risk' | 'total'
+type ScopeTab   = 'current' | 'past'
 
 const RISK_CFG = {
   urgent:  { label: '🚨 긴급', bg: C.dangerLight,  color: C.danger,  border: '#fca5a5' },
@@ -90,7 +95,7 @@ function formatDate(str: string | null) {
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
     <div style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ minWidth: 80, fontSize: 13, color: C.textMuted, fontWeight: 600, flexShrink: 0 }}>{label}</span>
+      <span style={{ minWidth: 88, fontSize: 13, color: C.textMuted, fontWeight: 600, flexShrink: 0 }}>{label}</span>
       <span style={{ fontSize: 13, color: C.text, wordBreak: 'break-all' }}>{value || '—'}</span>
     </div>
   )
@@ -99,8 +104,10 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 const MOBILE_BP = 768
 
 /* ── 환자 카드 (모바일) ── */
-function PatientCard({ p, query, onClick }: { p: PatientOverview; query: string; onClick: () => void }) {
-  const isOverdue = p.days_since_last_record !== null && p.days_since_last_record >= 3
+function PatientCard({ p, query, onClick, isCurrent }: {
+  p: PatientOverview; query: string; onClick: () => void; isCurrent: boolean
+}) {
+  const isOverdue = isCurrent && p.days_since_last_record !== null && p.days_since_last_record >= 3
   return (
     <div
       onClick={onClick}
@@ -109,6 +116,7 @@ function PatientCard({ p, query, onClick }: { p: PatientOverview; query: string;
         border: `1px solid ${isOverdue ? '#fcd34d' : C.border}`,
         borderRadius: 12, padding: '14px 16px', marginBottom: 8,
         cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        opacity: isCurrent ? 1 : 0.82,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
@@ -118,6 +126,11 @@ function PatientCard({ p, query, onClick }: { p: PatientOverview; query: string;
         <span style={{ fontSize: 11, color: C.textMuted, background: C.bg, borderRadius: 5, padding: '2px 6px', fontWeight: 600 }}>
           #{String(p.id).padStart(4, '0')}
         </span>
+        {!isCurrent && (
+          <span style={{ fontSize: 11, color: C.textMuted, background: '#f3f4f6', borderRadius: 5, padding: '2px 6px' }}>
+            과거 담당
+          </span>
+        )}
         <div style={{ marginLeft: 'auto' }}>
           {p.latest_risk_level ? (
             <span style={{ background: RISK_CFG[p.latest_risk_level].bg, color: RISK_CFG[p.latest_risk_level].color, border: `1px solid ${RISK_CFG[p.latest_risk_level].border}`, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>
@@ -138,23 +151,32 @@ function PatientCard({ p, query, onClick }: { p: PatientOverview; query: string;
             ? new Date(p.last_record_date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })
             : '기록 없음'}
         </span>
-        <DaysTag days={p.days_since_last_record} />
+        {isCurrent && <DaysTag days={p.days_since_last_record} />}
+        {!isCurrent && p.assignment_ended_at && (
+          <span style={{ fontSize: 11, color: C.textMuted }}>
+            담당 종료: {new Date(p.assignment_ended_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}
+          </span>
+        )}
       </div>
     </div>
   )
 }
 
 /* ═══════════════════════ 환자 상세 드로어 ═══════════════════════ */
-function PatientDrawer({ patientId, onClose, navigate }: {
-  patientId: number; onClose: () => void; navigate: ReturnType<typeof useNavigate>
+function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
+  patientId: number
+  onClose: () => void
+  onDischarge: (id: number) => void
+  navigate: ReturnType<typeof useNavigate>
 }) {
-  const [profile,  setProfile]  = useState<DrawerProfile | null>(null)
-  const [note,     setNote]     = useState('')
-  const [origNote, setOrigNote] = useState('')
-  const [loading,  setLoading]  = useState(true)
-  const [saving,   setSaving]   = useState(false)
-  const [saved,    setSaved]    = useState(false)
-  const [err,      setErr]      = useState('')
+  const [profile,       setProfile]       = useState<DrawerProfile | null>(null)
+  const [note,          setNote]          = useState('')
+  const [origNote,      setOrigNote]      = useState('')
+  const [loading,       setLoading]       = useState(true)
+  const [saving,        setSaving]        = useState(false)
+  const [saved,         setSaved]         = useState(false)
+  const [discharging,   setDischarging]   = useState(false)
+  const [err,           setErr]           = useState('')
 
   const token = () => localStorage.getItem('access_token') ?? ''
 
@@ -189,19 +211,34 @@ function PatientDrawer({ patientId, onClose, navigate }: {
     } catch (e: any) { alert(e.message) } finally { setSaving(false) }
   }
 
+  const handleDischarge = async () => {
+    if (!profile?.is_current_patient) return
+    const confirmed = window.confirm(`${profile.name} 환자의 담당을 해제하시겠습니까?\n\n담당 해제 후에는 이 환자가 기록을 제출할 수 없게 됩니다.`)
+    if (!confirmed) return
+    setDischarging(true)
+    try {
+      const res = await fetch(`${API}/api/v1/patients/${patientId}/discharge`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token()}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail ?? '담당 해제 실패')
+      alert(data.message)
+      onDischarge(patientId)
+      onClose()
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setDischarging(false)
+    }
+  }
+
   const noteChanged = note !== origNote
 
   return (
     <>
       {/* 배경 오버레이 */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.28)',
-          zIndex: 300,
-        }}
-      />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.28)', zIndex: 300 }} />
 
       {/* 드로어 패널 */}
       <div style={{
@@ -232,7 +269,9 @@ function PatientDrawer({ patientId, onClose, navigate }: {
             <>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>{profile.name} 환자</div>
-                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>환자 상세 정보</div>
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+                  {profile.is_current_patient ? '현재 담당' : '과거 담당'}
+                </div>
               </div>
               <button
                 onClick={() => { onClose(); navigate(`/doctor/patients/${patientId}/records`, { state: { patientName: profile.name } }) }}
@@ -267,10 +306,10 @@ function PatientDrawer({ patientId, onClose, navigate }: {
                 <InfoRow label="가입일"    value={profile.joined_at ? formatDate(profile.joined_at) : null} />
               </div>
 
-              {/* 환자 자기 메모 */}
+              {/* 환자 본인 메모 */}
               <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: '16px 18px', marginBottom: 14 }}>
                 <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 800, color: C.text }}>
-                  환자 자기 메모
+                  환자 본인 메모
                   <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: C.textMuted }}>환자 직접 작성</span>
                 </h3>
                 {profile.self_memo ? (
@@ -281,7 +320,7 @@ function PatientDrawer({ patientId, onClose, navigate }: {
               </div>
 
               {/* 의사 메모 */}
-              <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: '16px 18px' }}>
+              <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: '16px 18px', marginBottom: profile.is_current_patient ? 14 : 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text }}>의사 메모</h3>
@@ -315,6 +354,32 @@ function PatientDrawer({ patientId, onClose, navigate }: {
                   }}
                 />
               </div>
+
+              {/* 담당 해제 (현재 담당인 경우만) */}
+              {profile.is_current_patient && (
+                <div style={{
+                  background: C.dangerLight, borderRadius: 12,
+                  border: `1px solid #fca5a5`, padding: '14px 18px',
+                }}>
+                  <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 800, color: C.danger }}>담당 해제</h3>
+                  <p style={{ margin: '0 0 12px', fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>
+                    담당을 해제하면 이 환자는 기록을 제출할 수 없게 됩니다.<br />
+                    재연결은 환자의 요청 후 승인을 통해 가능합니다.
+                  </p>
+                  <button
+                    onClick={handleDischarge}
+                    disabled={discharging}
+                    style={{
+                      background: C.danger, color: '#fff', border: 'none',
+                      borderRadius: 8, padding: '8px 16px', cursor: discharging ? 'not-allowed' : 'pointer',
+                      fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
+                      opacity: discharging ? 0.6 : 1,
+                    }}
+                  >
+                    {discharging ? '처리 중...' : '🔓 담당 해제'}
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -333,16 +398,16 @@ function PatientDrawer({ patientId, onClose, navigate }: {
 /* ═══════════════════════ 메인 ═══════════════════════ */
 export default function PatientListPage() {
   const navigate = useNavigate()
-  const [patients,   setPatients]   = useState<PatientOverview[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState('')
-  const [query,      setQuery]      = useState('')
-  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all')
-  const [sortKey,    setSortKey]    = useState<SortKey>('name')
-  const [sortDesc,   setSortDesc]   = useState(false)
-  const [hoveredId,  setHoveredId]  = useState<number | null>(null)
-  const [isMobile,   setIsMobile]   = useState(window.innerWidth < MOBILE_BP)
+  const [patients,        setPatients]        = useState<PatientOverview[]>([])
+  const [loading,         setLoading]         = useState(true)
+  const [error,           setError]           = useState('')
+  const [query,           setQuery]           = useState('')
+  const [riskFilter,      setRiskFilter]      = useState<RiskFilter>('all')
+  const [sortKey,         setSortKey]         = useState<SortKey>('name')
+  const [sortDesc,        setSortDesc]        = useState(false)
+  const [isMobile,        setIsMobile]        = useState(window.innerWidth < MOBILE_BP)
   const [drawerPatientId, setDrawerPatientId] = useState<number | null>(null)
+  const [scope,           setScope]           = useState<ScopeTab>('current')
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -351,10 +416,11 @@ export default function PatientListPage() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  useEffect(() => {
+  const fetchPatients = useCallback((sc: ScopeTab) => {
     const token = localStorage.getItem('access_token')
     if (!token) { navigate('/login'); return }
-    fetch(`${API}/api/v1/patients/overview`, { headers: { Authorization: `Bearer ${token}` } })
+    setLoading(true); setError('')
+    fetch(`${API}/api/v1/patients/overview?scope=${sc}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         if (res.status === 401) { localStorage.clear(); navigate('/login'); return null }
         if (!res.ok) throw new Error('서버 오류')
@@ -364,6 +430,12 @@ export default function PatientListPage() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
   }, [navigate])
+
+  useEffect(() => { fetchPatients(scope) }, [scope, fetchPatients])
+
+  const handleDischarge = (patientId: number) => {
+    setPatients(prev => prev.filter(p => p.id !== patientId))
+  }
 
   const filtered = useMemo(() => {
     let list = patients
@@ -402,9 +474,9 @@ export default function PatientListPage() {
   const sortIcon = (key: SortKey) => sortKey !== key ? '↕' : sortDesc ? '↓' : '↑'
 
   const RISK_FILTER_TABS: { key: RiskFilter; label: string; count: number; color?: string }[] = [
-    { key: 'all',       label: '전체',    count: stats.total },
-    { key: 'urgent',    label: '🚨 긴급', count: stats.urgent,  color: C.danger  },
-    { key: 'caution',   label: '⚠️ 주의', count: stats.caution, color: C.warning },
+    { key: 'all',       label: '전체',      count: stats.total },
+    { key: 'urgent',    label: '🚨 긴급',  count: stats.urgent,   color: C.danger  },
+    { key: 'caution',   label: '⚠️ 주의',  count: stats.caution,  color: C.warning },
     { key: 'no_record', label: '기록 없음', count: stats.noRecord },
   ]
 
@@ -415,28 +487,55 @@ export default function PatientListPage() {
     <main style={{ padding: pad, minHeight: '100vh' }}>
       {/* 헤더 */}
       <div style={{ marginBottom: isMobile ? 14 : 22 }}>
-        <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>담당 환자 관리</h1>
+        <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>
+          담당 환자 관리
+        </h1>
       </div>
 
-      {/* 요약 카드 */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12, marginBottom: isMobile ? 14 : 22 }}>
-        {[
-          { label: '총 환자',     value: stats.total,   icon: '👥', color: undefined },
-          { label: '긴급 (최근)', value: stats.urgent,  icon: '🚨', color: C.danger  },
-          { label: '주의 (최근)', value: stats.caution, icon: '⚠️', color: C.warning },
-          { label: '3일+ 미제출', value: stats.overdue, icon: '📋', color: stats.overdue > 0 ? C.warning : undefined },
-        ].map(c => (
-          <div key={c.label} style={{ background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: isMobile ? '12px 14px' : '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <span style={{ fontSize: 14 }}>{c.icon}</span>
-              <span style={{ fontSize: 11, color: C.textMuted }}>{c.label}</span>
-            </div>
-            <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, color: c.color ?? C.text, letterSpacing: '-0.03em', lineHeight: 1 }}>{c.value}</div>
-          </div>
+      {/* 현재담당 / 과거담당 탭 */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: isMobile ? 14 : 20, borderBottom: `2px solid ${C.border}`, paddingBottom: 0 }}>
+        {([
+          { key: 'current' as ScopeTab, label: '현재 담당' },
+          { key: 'past'    as ScopeTab, label: '과거 담당' },
+        ]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => { setScope(tab.key); setRiskFilter('all'); setQuery('') }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '10px 18px', fontSize: 14, fontWeight: 700,
+              fontFamily: 'inherit',
+              color: scope === tab.key ? C.primary : C.textMuted,
+              borderBottom: scope === tab.key ? `2px solid ${C.primary}` : '2px solid transparent',
+              marginBottom: -2, transition: 'all 0.15s',
+            }}
+          >
+            {tab.label}
+          </button>
         ))}
       </div>
 
-      {/* 검색 + 필터 바 */}
+      {/* 요약 카드 (현재 담당일 때만) */}
+      {scope === 'current' && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12, marginBottom: isMobile ? 14 : 22 }}>
+          {[
+            { label: '총 환자',     value: stats.total,   icon: '👥', color: undefined },
+            { label: '긴급 (최근)', value: stats.urgent,  icon: '🚨', color: C.danger  },
+            { label: '주의 (최근)', value: stats.caution, icon: '⚠️', color: C.warning },
+            { label: '3일+ 미제출', value: stats.overdue, icon: '📋', color: stats.overdue > 0 ? C.warning : undefined },
+          ].map(c => (
+            <div key={c.label} style={{ background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: isMobile ? '12px 14px' : '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 14 }}>{c.icon}</span>
+                <span style={{ fontSize: 11, color: C.textMuted }}>{c.label}</span>
+              </div>
+              <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, color: c.color ?? C.text, letterSpacing: '-0.03em', lineHeight: 1 }}>{c.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 검색 + 위험도 필터 */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
@@ -449,158 +548,170 @@ export default function PatientListPage() {
               style={{
                 width: '100%', paddingLeft: 32, paddingRight: query ? 32 : 12,
                 paddingTop: 8, paddingBottom: 8,
-                border: `1px solid ${query ? 'var(--capd-primary)' : C.border}`,
-                borderRadius: 9, fontSize: 13, outline: 'none',
-                background: '#fff', color: C.text, fontFamily: 'inherit',
+                border: `1px solid ${C.border}`, borderRadius: 10,
+                fontSize: 13, fontFamily: 'inherit', outline: 'none', background: '#fff',
                 boxSizing: 'border-box',
-                boxShadow: query ? '0 0 0 3px var(--capd-primary-light)' : 'none',
-                transition: 'all 0.15s',
               }}
             />
             {query && (
-              <button onClick={() => { setQuery(''); searchRef.current?.focus() }}
-                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, fontSize: 14, padding: 0 }}>✕</button>
+              <button
+                onClick={() => setQuery('')}
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: C.textMuted, padding: 2 }}
+              >✕</button>
             )}
           </div>
-          <span style={{ fontSize: 12, color: C.textMuted, whiteSpace: 'nowrap' }}>{filtered.length}명 표시</span>
         </div>
 
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {RISK_FILTER_TABS.map(tab => {
-            const active = riskFilter === tab.key
-            return (
-              <button key={tab.key} onClick={() => setRiskFilter(tab.key)} style={{
-                padding: '6px 11px', borderRadius: 8,
-                border: `1px solid ${active ? 'var(--capd-primary)' : C.border}`,
-                background: active ? 'var(--capd-primary)' : '#fff',
-                color: active ? '#fff' : tab.color ?? C.textMuted,
-                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', gap: 5,
-              }}>
-                {tab.label}
-                <span style={{ fontSize: 10, fontWeight: 700, background: active ? 'rgba(255,255,255,0.25)' : C.bg, color: active ? '#fff' : C.textMuted, borderRadius: 10, padding: '1px 5px' }}>
-                  {tab.count}
-                </span>
-              </button>
-            )
-          })}
+        {/* 위험도 필터 탭 */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {RISK_FILTER_TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setRiskFilter(t.key)}
+              style={{
+                background: riskFilter === t.key ? (t.color ? t.color : C.primary) : '#fff',
+                color: riskFilter === t.key ? '#fff' : (t.color ?? C.textMuted),
+                border: `1px solid ${riskFilter === t.key ? 'transparent' : C.border}`,
+                borderRadius: 8, padding: '6px 13px', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+              }}
+            >
+              {t.label} <span style={{ opacity: 0.85 }}>({t.count})</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {error && (
-        <div style={{ padding: 20, color: C.danger, fontSize: 13, background: '#fff', borderRadius: 14, border: `1px solid ${C.border}` }}>오류: {error}</div>
-      )}
+      {/* 로딩 / 에러 */}
+      {loading && <p style={{ color: C.textMuted, fontSize: 13, padding: '20px 0' }}>불러오는 중...</p>}
+      {error   && <p style={{ color: C.danger,    fontSize: 13 }}>오류: {error}</p>}
 
-      {!error && loading && (
-        <div style={{ padding: '40px 16px', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>불러오는 중...</div>
-      )}
-
-      {!error && !loading && filtered.length === 0 && (
-        <div style={{ padding: '48px 16px', textAlign: 'center', color: C.textMuted, fontSize: 13, background: '#fff', borderRadius: 14, border: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
-          {query ? `"${query}"와 일치하는 환자가 없습니다` : '등록된 환자가 없습니다'}
+      {/* 모바일: 카드 목록 */}
+      {!loading && isMobile && (
+        <div>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 13, padding: '40px 0' }}>
+              {scope === 'past' ? '과거 담당 환자가 없습니다.' : '조건에 맞는 환자가 없습니다.'}
+            </div>
+          ) : filtered.map(p => (
+            <PatientCard key={p.id} p={p} query={query} onClick={() => openDrawer(p.id)} isCurrent={scope === 'current'} />
+          ))}
         </div>
       )}
 
-      {!error && !loading && filtered.length > 0 && (
-        isMobile ? (
-          <>
-            {filtered.map(p => (
-              <PatientCard key={p.id} p={p} query={query} onClick={() => openDrawer(p.id)} />
-            ))}
-          </>
-        ) : (
-          <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <colgroup>
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '8%'  }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '18%' }} />
-              </colgroup>
-              <thead>
-                <tr style={{ background: C.bg }}>
-                  {[
-                    { label: '환자명',      key: 'name'        as SortKey },
-                    { label: '환자번호',    key: null },
-                    { label: '전화번호',    key: null },
-                    { label: '최근 위험도', key: 'risk'        as SortKey },
-                    { label: '총 기록 수',  key: 'total'       as SortKey },
-                    { label: '마지막 기록', key: 'last_record' as SortKey },
-                    { label: '경과일',      key: null },
-                    { label: '',            key: null },
-                  ].map((h, i) => (
-                    <th key={i} onClick={h.key ? () => handleSort(h.key!) : undefined}
-                      style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap', cursor: h.key ? 'pointer' : 'default', userSelect: 'none' }}>
-                      {h.label}{h.key && <span style={{ marginLeft: 4, opacity: 0.5 }}>{sortIcon(h.key)}</span>}
-                    </th>
-                  ))}
+      {/* 데스크톱: 테이블 */}
+      {!loading && !isMobile && (
+        <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: C.bg, borderBottom: `1px solid ${C.border}` }}>
+                {[
+                  { key: 'name'        as SortKey, label: '환자명' },
+                  { key: null,                      label: '번호' },
+                  { key: null,                      label: '전화번호' },
+                  { key: 'risk'        as SortKey, label: '최근 위험도' },
+                  { key: 'total'       as SortKey, label: '총 기록' },
+                  { key: 'last_record' as SortKey, label: '마지막 기록' },
+                  { key: null,                      label: scope === 'current' ? '경과일' : '담당 종료일' },
+                  { key: null,                      label: '액션' },
+                ].map((col, i) => (
+                  <th
+                    key={i}
+                    onClick={col.key ? () => handleSort(col.key!) : undefined}
+                    style={{
+                      padding: '12px 14px', fontWeight: 700, color: C.textMuted, textAlign: 'left',
+                      cursor: col.key ? 'pointer' : 'default',
+                      userSelect: 'none', whiteSpace: 'nowrap', fontSize: 12,
+                    }}
+                  >
+                    {col.label}{col.key ? ` ${sortIcon(col.key)}` : ''}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '40px 14px', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
+                    {scope === 'past' ? '과거 담당 환자가 없습니다.' : '조건에 맞는 환자가 없습니다.'}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.map(p => {
-                  const hovered   = hoveredId === p.id
-                  const isOverdue = p.days_since_last_record !== null && p.days_since_last_record >= 3
-                  return (
-                    <tr key={p.id}
-                      style={{ borderTop: `1px solid ${C.border}`, background: hovered ? C.bg : '#fff', transition: 'background 0.1s', cursor: 'pointer' }}
-                      onMouseEnter={() => setHoveredId(p.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                      onClick={() => openDrawer(p.id)}
-                    >
-                      <td style={{ padding: '13px 12px', fontWeight: 700, fontSize: 14, color: C.primaryDark }}>
-                        <Highlight text={p.name} query={query} />
-                      </td>
-                      <td style={{ padding: '13px 12px' }}>
-                        <span style={{ fontSize: 11, background: C.bg, color: C.textMuted, borderRadius: 5, padding: '2px 7px', fontWeight: 600 }}>
-                          #{String(p.id).padStart(4, '0')}
+              ) : filtered.map((p, idx) => {
+                const isOverdue = scope === 'current' && p.days_since_last_record !== null && p.days_since_last_record >= 3
+                return (
+                  <tr
+                    key={p.id}
+                    onClick={() => openDrawer(p.id)}
+                    style={{
+                      borderBottom: idx < filtered.length - 1 ? `1px solid ${C.border}` : 'none',
+                      background: isOverdue ? '#fffef0' : '#fff',
+                      cursor: 'pointer',
+                      opacity: scope === 'past' ? 0.82 : 1,
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                    onMouseLeave={e => (e.currentTarget.style.background = isOverdue ? '#fffef0' : '#fff')}
+                  >
+                    <td style={{ padding: '12px 14px', fontWeight: 700, color: C.primaryDark }}>
+                      <Highlight text={p.name} query={query} />
+                    </td>
+                    <td style={{ padding: '12px 14px', color: C.textMuted, fontSize: 12 }}>
+                      #{String(p.id).padStart(4, '0')}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: C.textMuted }}>
+                      <Highlight text={p.phone_number} query={query} />
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      {p.latest_risk_level ? (
+                        <span style={{ background: RISK_CFG[p.latest_risk_level].bg, color: RISK_CFG[p.latest_risk_level].color, border: `1px solid ${RISK_CFG[p.latest_risk_level].border}`, borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>
+                          {RISK_CFG[p.latest_risk_level].label}
                         </span>
-                      </td>
-                      <td style={{ padding: '13px 12px', fontSize: 12, color: C.textMuted }}>
-                        <Highlight text={p.phone_number} query={query} />
-                      </td>
-                      <td style={{ padding: '13px 12px' }}>
-                        {p.latest_risk_level ? (
-                          <span style={{ background: RISK_CFG[p.latest_risk_level].bg, color: RISK_CFG[p.latest_risk_level].color, border: `1px solid ${RISK_CFG[p.latest_risk_level].border}`, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>
-                            {RISK_CFG[p.latest_risk_level].label}
-                          </span>
-                        ) : <span style={{ fontSize: 12, color: C.textLight }}>—</span>}
-                      </td>
-                      <td style={{ padding: '13px 12px' }}>
-                        {p.total_records > 0
-                          ? <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{p.total_records}<span style={{ fontSize: 11, color: C.textMuted, fontWeight: 400, marginLeft: 2 }}>건</span></span>
-                          : <span style={{ fontSize: 12, color: C.textLight }}>기록 없음</span>}
-                      </td>
-                      <td style={{ padding: '13px 12px', fontSize: 12, color: C.textMuted }}>
-                        {p.last_record_date
-                          ? new Date(p.last_record_date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })
-                          : <span style={{ color: C.textLight }}>—</span>}
-                      </td>
-                      <td style={{ padding: '13px 12px' }}><DaysTag days={p.days_since_last_record} /></td>
-                      <td style={{ padding: '13px 12px' }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => openDrawer(p.id)}
-                          style={{ padding: '5px 12px', border: `1px solid ${C.border}`, borderRadius: 7, background: isOverdue ? C.warningLight : C.primaryLight, color: isOverdue ? C.warning : C.primaryDark, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                          상세 보기 →
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )
+                      ) : <span style={{ fontSize: 12, color: C.textLight }}>없음</span>}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: C.text, fontWeight: 600 }}>
+                      {p.total_records > 0 ? `${p.total_records}건` : <span style={{ color: C.textLight }}>없음</span>}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: C.textMuted, fontSize: 12 }}>
+                      {p.last_record_date
+                        ? new Date(p.last_record_date + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })
+                        : '—'}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      {scope === 'current'
+                        ? <DaysTag days={p.days_since_last_record} />
+                        : p.assignment_ended_at
+                          ? <span style={{ fontSize: 12, color: C.textMuted }}>
+                              {new Date(p.assignment_ended_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}
+                            </span>
+                          : <span style={{ fontSize: 12, color: C.textLight }}>—</span>
+                      }
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); openDrawer(p.id) }}
+                        style={{
+                          background: C.primaryLight, color: C.primary, border: 'none',
+                          borderRadius: 7, padding: '5px 12px', fontSize: 12, fontWeight: 600,
+                          cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        상세 보기
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      {/* 우측 슬라이드 드로어 */}
+      {/* 드로어 */}
       {drawerPatientId !== null && (
         <PatientDrawer
           patientId={drawerPatientId}
           onClose={() => setDrawerPatientId(null)}
+          onDischarge={handleDischarge}
           navigate={navigate}
         />
       )}

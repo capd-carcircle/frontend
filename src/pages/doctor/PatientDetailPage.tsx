@@ -4,7 +4,7 @@
  *
  * 구성
  * - 환자 기본 정보 (이름/생년월일/전화/병원/담당의/가입일)
- * - 환자 자기 메모 (읽기 전용)
+ * - 환자 본인 메모 (읽기 전용)
  * - 의사 메모 (작성/수정 가능, 환자에게 비공개)
  * - 기록 전체 보기 버튼
  */
@@ -163,10 +163,10 @@ export default function PatientDetailPage() {
         <InfoRow label="가입일"    value={profile.joined_at ? formatDate(profile.joined_at) : null} />
       </div>
 
-      {/* 환자 자기 메모 */}
+      {/* 환자 본인 메모 */}
       <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '20px 24px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
         <h2 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>
-          환자 자기 메모
+          환자 본인 메모
           <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: C.textMuted }}>환자가 직접 작성한 특이사항</span>
         </h2>
         {profile.self_memo ? (

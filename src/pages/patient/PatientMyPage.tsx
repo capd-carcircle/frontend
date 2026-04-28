@@ -12,7 +12,7 @@
  *  - 비밀번호 변경: "수정하기" 버튼 → 입력
  *  - 나의 특이사항: 항상 수정 가능 (비밀번호 불필요)
  */
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
@@ -55,13 +55,16 @@ function InputField({ label, type = 'text', value, onChange, placeholder, autoFo
   label: string; type?: string; value: string
   onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean
 }) {
-  const [focused, setFocused] = useState(false)
+  const [focused,  setFocused]  = useState(false)
+  const composing = useRef(false)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>{label}</label>
       <input
         type={type} value={value} placeholder={placeholder} autoFocus={autoFocus}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => { if (!composing.current) onChange(e.target.value) }}
+        onCompositionStart={() => { composing.current = true }}
+        onCompositionEnd={e => { composing.current = false; onChange((e.target as HTMLInputElement).value) }}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={{
           padding: '9px 12px', borderRadius: 9,

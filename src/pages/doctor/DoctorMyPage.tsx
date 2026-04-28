@@ -11,7 +11,7 @@
  *  - 전화번호 변경: "수정하기" 버튼 → 입력 + 현재 비밀번호 필수
  *  - 비밀번호 변경: "수정하기" 버튼 → 입력
  */
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
@@ -54,13 +54,16 @@ function InputField({ label, type = 'text', value, onChange, placeholder, autoFo
   label: string; type?: string; value: string
   onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean
 }) {
-  const [focused, setFocused] = useState(false)
+  const [focused,   setFocused]   = useState(false)
+  const composing = useRef(false)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>{label}</label>
       <input
         type={type} value={value} placeholder={placeholder} autoFocus={autoFocus}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => { if (!composing.current) onChange(e.target.value) }}
+        onCompositionStart={() => { composing.current = true }}
+        onCompositionEnd={e => { composing.current = false; onChange((e.target as HTMLInputElement).value) }}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={{
           padding: '9px 12px', borderRadius: 9,
@@ -355,15 +358,4 @@ export default function DoctorMyPage() {
         </>
       ) : (
         /* ── 데스크톱: 2열 ── */
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-          <div style={{ flex: '0 0 300px' }}>
-            <ProfileCard />
-          </div>
-          <div style={{ flex: 1 }}>
-            <EditSections />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+        <div style={{ display: 'flex', gap: 20, ali

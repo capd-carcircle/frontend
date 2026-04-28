@@ -15,7 +15,7 @@ const C = {
 const navItems = [
   { id: 'dashboard',    label: '대시보드',      icon: '◈',  path: '/doctor' },
   { id: 'patients',     label: '담당 환자 관리',  icon: '🧑‍⚕️', path: '/doctor/patients' },
-  { id: 'approve',      label: '환자 가입 승인', icon: '👥', path: '/doctor/approve' },
+  { id: 'approve', label: '담당 연결 관리', icon: '🔗', path: '/doctor/approve' },
   { id: 'questions',    label: '공통 질문',      icon: '❓', path: '/doctor/common-questions' },
   { id: 'ai-questions', label: 'AI 질문 검토',   icon: '🤖', path: '/doctor/ai-questions' },
   { id: 'mypage',       label: '마이페이지',     icon: '👤', path: '/doctor/mypage' },
@@ -392,20 +392,4 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
                 marginTop: 4,
                 borderTop: `1px solid ${C.border}`,
                 cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 10,
-                fontSize: 13, color: C.textMuted,
-              }}
-            >
-              <span>↩</span> 로그아웃
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 메인 콘텐츠 */}
-      <div style={{ paddingTop: HEADER_H, minHeight: '100vh' }}>
-        {children}
-      </div>
-    </div>
-  )
-}
+                display: 'flex', 
