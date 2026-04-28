@@ -1,19 +1,10 @@
-/**
- * PatientMyPage — 환자 마이페이지
- * 경로: /patient/mypage
- *
- * 레이아웃
- *  - 데스크톱(≥768px): 좌열(프로필 카드) + 우열(수정 섹션들)
- *  - 모바일(<768px): 단일 열
- *
- * 수정 UX
- *  - 프로필(이름/생년월일): "수정하기" 버튼 → 편집 모드, 현재 비밀번호 필수
- *  - 전화번호 변경: "수정하기" 버튼 → 입력 + 현재 비밀번호 필수
- *  - 비밀번호 변경: "수정하기" 버튼 → 입력
- *  - 나의 특이사항: 항상 수정 가능 (비밀번호 불필요)
- */
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router'
+import {
+  getHospitals, getDoctors,
+  patientConnectRequest, getMyPendingRequest, cancelMyRequest, patientDischargeRequest,
+} from '../../api/auth'
+import type { Hospital, DoctorSummary } from '../../types'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 const MOBILE_BP = 768
@@ -25,23 +16,20 @@ const C = {
   border:       'var(--capd-border)',
   text:         '#1a1a2e',
   textMuted:    '#6b7280',
-  textLight:    '#9ca3af',
   success:      '#16a34a',
   danger:       '#dc2626',
 }
 
 interface PatientProfile {
-  id:            number
-  name:          string
-  phone_number:  string
-  birth_date:    string | null
-  hospital_name: string | null
-  doctor_name:   string | null
-  self_memo:     string | null
-  role:          string
+  id: number; name: string; phone_number: string
+  birth_date: string | null; hospital_name: string | null
+  doctor_name: string | null; doctor_id: number | null
+  self_memo: string | null; role: string
+}
+interface PendingReq {
+  id: number; request_type: string; doctor_name: string | null; status: string
 }
 
-/* ── 공통 컴포넌트 ── */
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
     <div style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
@@ -55,7 +43,7 @@ function InputField({ label, type = 'text', value, onChange, placeholder, autoFo
   label: string; type?: string; value: string
   onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean
 }) {
-  const [focused,  setFocused]  = useState(false)
+  const [focused, setFocused] = useState(false)
   const composing = useRef(false)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -83,66 +71,67 @@ function SectionCard({ children, style }: { children: React.ReactNode; style?: R
       background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`,
       padding: '18px 22px', marginBottom: 14,
       boxShadow: '0 1px 4px rgba(0,0,0,0.05)', ...style,
-    }}>
-      {children}
-    </div>
+    }}>{children}</div>
   )
 }
 
 const editBtn: React.CSSProperties = {
-  padding: '6px 14px', borderRadius: 8,
-  border: `1px solid ${C.border}`, background: '#fff',
-  fontSize: 12, fontWeight: 600, color: C.textMuted,
+  padding: '6px 14px', borderRadius: 8, border: `1px solid var(--capd-border)`,
+  background: '#fff', fontSize: 12, fontWeight: 600, color: '#6b7280',
   cursor: 'pointer', fontFamily: 'inherit',
 }
-const cancelBtn: React.CSSProperties = { ...editBtn, marginRight: 8 }
-const saveBtn = (disabled: boolean, saved: boolean): React.CSSProperties => ({
+const cancelBtnStyle: React.CSSProperties = { ...editBtn, marginRight: 8 }
+const saveBtnStyle = (disabled: boolean, saved: boolean): React.CSSProperties => ({
   padding: '7px 16px', borderRadius: 8, border: 'none',
-  background: saved ? C.success : disabled ? '#e5e7eb' : C.primary,
-  color: (saved || !disabled) ? '#fff' : C.textMuted,
+  background: saved ? '#16a34a' : disabled ? '#e5e7eb' : 'var(--capd-primary)',
+  color: (saved || !disabled) ? '#fff' : '#6b7280',
   fontSize: 12, fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
   fontFamily: 'inherit', transition: 'all 0.15s',
 })
 
-/* ════════════════════════════════════════ */
 export default function PatientMyPage() {
-  const navigate  = useNavigate()
+  const navigate = useNavigate()
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BP)
   const [profile,  setProfile]  = useState<PatientProfile | null>(null)
   const [loading,  setLoading]  = useState(true)
   const [err,      setErr]      = useState('')
 
-  // ── 프로필 편집 모드
-  const [editProfile,  setEditProfile]  = useState(false)
-  const [editName,     setEditName]     = useState('')
-  const [editBirth,    setEditBirth]    = useState('')
-  const [profPw,       setProfPw]       = useState('')
-  const [profSaving,   setProfSaving]   = useState(false)
-  const [profSaved,    setProfSaved]    = useState(false)
-  const [profError,    setProfError]    = useState('')
+  const [editProfile, setEditProfile] = useState(false)
+  const [editName,    setEditName]    = useState('')
+  const [editBirth,   setEditBirth]   = useState('')
+  const [profPw,      setProfPw]      = useState('')
+  const [profSaving,  setProfSaving]  = useState(false)
+  const [profSaved,   setProfSaved]   = useState(false)
+  const [profError,   setProfError]   = useState('')
 
-  // ── 전화번호 편집 모드
-  const [editPhone,    setEditPhone]    = useState(false)
-  const [newPhone,     setNewPhone]     = useState('')
-  const [phonePw,      setPhonePw]      = useState('')
-  const [phoneSaving,  setPhoneSaving]  = useState(false)
-  const [phoneSaved,   setPhoneSaved]   = useState(false)
-  const [phoneError,   setPhoneError]   = useState('')
+  const [editPhone,   setEditPhone]   = useState(false)
+  const [newPhone,    setNewPhone]    = useState('')
+  const [phonePw,     setPhonePw]     = useState('')
+  const [phoneSaving, setPhoneSaving] = useState(false)
+  const [phoneSaved,  setPhoneSaved]  = useState(false)
+  const [phoneError,  setPhoneError]  = useState('')
 
-  // ── 비밀번호 편집 모드
-  const [editPw,       setEditPw]       = useState(false)
-  const [curPw,        setCurPw]        = useState('')
-  const [newPw,        setNewPw]        = useState('')
-  const [confirmPw,    setConfirmPw]    = useState('')
-  const [pwSaving,     setPwSaving]     = useState(false)
-  const [pwSaved,      setPwSaved]      = useState(false)
-  const [pwError,      setPwError]      = useState('')
+  const [editPw,    setEditPw]    = useState(false)
+  const [curPw,     setCurPw]     = useState('')
+  const [newPw,     setNewPw]     = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwSaving,  setPwSaving]  = useState(false)
+  const [pwSaved,   setPwSaved]   = useState(false)
+  const [pwError,   setPwError]   = useState('')
 
-  // ── 자기 메모 (항상 표시)
-  const [memo,         setMemo]         = useState('')
-  const [origMemo,     setOrigMemo]     = useState('')
-  const [memoSaving,   setMemoSaving]   = useState(false)
-  const [memoSaved,    setMemoSaved]    = useState(false)
+  const [memo,       setMemo]       = useState('')
+  const [origMemo,   setOrigMemo]   = useState('')
+  const [memoSaving, setMemoSaving] = useState(false)
+  const [memoSaved,  setMemoSaved]  = useState(false)
+
+  const [pendingReq,     setPendingReq]     = useState<PendingReq | null>(null)
+  const [connectMode,    setConnectMode]    = useState(false)
+  const [hospitals,      setHospitals]      = useState<Hospital[]>([])
+  const [doctors,        setDoctors]        = useState<DoctorSummary[]>([])
+  const [selHospital,    setSelHospital]    = useState<number | ''>('')
+  const [selDoctor,      setSelDoctor]      = useState<number | ''>('')
+  const [connectLoading, setConnectLoading] = useState(false)
+  const [connectError,   setConnectError]   = useState('')
 
   const token = () => localStorage.getItem('access_token') ?? ''
 
@@ -158,20 +147,17 @@ export default function PatientMyPage() {
     })
       .then(r => { if (r.status === 401) { localStorage.clear(); navigate('/login'); return null } return r.json() })
       .then(d => {
-        if (d) {
-          setProfile(d)
-          setEditName(d.name)
-          setEditBirth(d.birth_date ?? '')
-          setNewPhone(d.phone_number)
-          const m = d.self_memo ?? ''
-          setMemo(m); setOrigMemo(m)
-        }
+        if (!d) return
+        setProfile(d); setEditName(d.name); setEditBirth(d.birth_date ?? '')
+        setNewPhone(d.phone_number); setMemo(d.self_memo ?? ''); setOrigMemo(d.self_memo ?? '')
       })
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false))
+    getMyPendingRequest().then(r => setPendingReq(r.request)).catch(() => {})
+    getHospitals().then(setHospitals).catch(() => {})
   }, [navigate])
 
-  const patch = async (body: object) => {
+  const apiFetch = async (body: object) => {
     const res = await fetch(`${API}/api/v1/auth/me`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
@@ -184,7 +170,7 @@ export default function PatientMyPage() {
   const saveProfile = async () => {
     setProfError(''); setProfSaving(true)
     try {
-      const data = await patch({ name: editName, birth_date: editBirth || null, current_password: profPw })
+      const data = await apiFetch({ name: editName, birth_date: editBirth || null, current_password: profPw })
       setProfile(p => p ? { ...p, name: data.name ?? editName, birth_date: editBirth || null } : p)
       if (data.name) localStorage.setItem('user_name', data.name)
       setProfSaved(true); setTimeout(() => setProfSaved(false), 2000)
@@ -195,7 +181,7 @@ export default function PatientMyPage() {
   const savePhone = async () => {
     setPhoneError(''); setPhoneSaving(true)
     try {
-      await patch({ phone_number: newPhone, current_password: phonePw })
+      await apiFetch({ phone_number: newPhone, current_password: phonePw })
       setProfile(p => p ? { ...p, phone_number: newPhone } : p)
       setPhoneSaved(true); setTimeout(() => setPhoneSaved(false), 2000)
       setEditPhone(false); setPhonePw('')
@@ -208,20 +194,53 @@ export default function PatientMyPage() {
     if (newPw.length < 6)    { setPwError('비밀번호는 6자 이상이어야 합니다.'); return }
     setPwSaving(true)
     try {
-      await patch({ current_password: curPw, new_password: newPw })
+      await apiFetch({ current_password: curPw, new_password: newPw })
       setCurPw(''); setNewPw(''); setConfirmPw('')
-      setPwSaved(true); setTimeout(() => setPwSaved(false), 2000)
-      setEditPw(false)
+      setPwSaved(true); setTimeout(() => setPwSaved(false), 2000); setEditPw(false)
     } catch (e: any) { setPwError(e.message) } finally { setPwSaving(false) }
   }
 
   const saveMemo = async () => {
     setMemoSaving(true)
     try {
-      await patch({ self_memo: memo })
-      setOrigMemo(memo)
+      await apiFetch({ self_memo: memo }); setOrigMemo(memo)
       setMemoSaved(true); setTimeout(() => setMemoSaved(false), 2000)
-    } catch { /* ignore */ } finally { setMemoSaving(false) }
+    } catch { } finally { setMemoSaving(false) }
+  }
+
+  const handleHospitalChange = async (id: number | '') => {
+    setSelHospital(id); setSelDoctor('')
+    if (!id) { setDoctors([]); return }
+    try { setDoctors(await getDoctors(Number(id))) } catch { setDoctors([]) }
+  }
+
+  const handleConnectRequest = async () => {
+    if (!selDoctor) { setConnectError('담당 의사를 선택해주세요.'); return }
+    setConnectLoading(true); setConnectError('')
+    try {
+      await patientConnectRequest(Number(selDoctor))
+      const r = await getMyPendingRequest(); setPendingReq(r.request)
+      setConnectMode(false); setSelHospital(''); setSelDoctor('')
+    } catch (e: any) { setConnectError(e?.response?.data?.detail ?? '신청에 실패했습니다.') }
+    finally { setConnectLoading(false) }
+  }
+
+  const handleCancelRequest = async () => {
+    if (!pendingReq || !window.confirm('신청을 취소하시겠습니까?')) return
+    setConnectLoading(true)
+    try { await cancelMyRequest(pendingReq.id); setPendingReq(null) }
+    catch (e: any) { alert(e?.response?.data?.detail ?? '취소에 실패했습니다.') }
+    finally { setConnectLoading(false) }
+  }
+
+  const handleDischargeRequest = async () => {
+    if (!window.confirm('담당 해제 요청을 보내시겠습니까?')) return
+    setConnectLoading(true)
+    try {
+      await patientDischargeRequest()
+      const r = await getMyPendingRequest(); setPendingReq(r.request)
+    } catch (e: any) { alert(e?.response?.data?.detail ?? '요청에 실패했습니다.') }
+    finally { setConnectLoading(false) }
   }
 
   if (loading) return (
@@ -236,23 +255,20 @@ export default function PatientMyPage() {
   )
 
   const memoChanged = memo !== origMemo
+  const selectSt: React.CSSProperties = {
+    padding: '9px 12px', borderRadius: 9, border: `1.5px solid ${C.border}`,
+    fontSize: 13, fontFamily: 'inherit', color: C.text, background: '#fff', outline: 'none',
+  }
 
-  /* ── 프로필 카드 ── */
-  const ProfileCard = () => (
+  const profileCard = (
     <SectionCard style={{ marginBottom: isMobile ? 14 : 0 }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 16, borderBottom: `1px solid ${C.border}`, marginBottom: 14 }}>
-        <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          background: C.primaryLight,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 26, fontWeight: 900, color: C.primary, marginBottom: 10,
-        }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 900, color: C.primary, marginBottom: 10 }}>
           {profile.name[0] ?? 'P'}
         </div>
         <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>{profile.name}</div>
         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 3 }}>CAPD 환자</div>
       </div>
-
       <InfoRow label="이름"     value={profile.name} />
       <InfoRow label="생년월일"  value={profile.birth_date ?? undefined} />
       <InfoRow label="통원 병원" value={profile.hospital_name ?? undefined} />
@@ -261,44 +277,103 @@ export default function PatientMyPage() {
     </SectionCard>
   )
 
-  /* ── 수정 섹션들 ── */
-  const EditSections = () => (
+  const editSections = (
     <>
-      {/* ── 나의 특이사항 (항상 표시) ── */}
+      {/* 담당 의사 */}
+      <SectionCard>
+        <h2 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800, color: C.text }}>담당 의사</h2>
+        {profile.doctor_name && !pendingReq && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#f0fdf4', borderRadius: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>👨‍⚕️</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>{profile.doctor_name}</div>
+                {profile.hospital_name && <div style={{ fontSize: 11, color: C.textMuted }}>{profile.hospital_name}</div>}
+              </div>
+            </div>
+            <button onClick={handleDischargeRequest} disabled={connectLoading}
+              style={{ ...editBtn, width: '100%', textAlign: 'center', color: C.danger, borderColor: '#fca5a5' }}>
+              {connectLoading ? '처리 중...' : '담당 해제 요청'}
+            </button>
+          </div>
+        )}
+        {pendingReq && (
+          <div>
+            <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+                {pendingReq.request_type === 'connect' ? '⏳ 연결 신청 대기 중' : '⏳ 해제 요청 대기 중'}
+              </div>
+              {pendingReq.doctor_name && <div style={{ fontSize: 13, color: C.text }}>의사: {pendingReq.doctor_name}</div>}
+              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>담당 의사의 승인을 기다리는 중입니다.</div>
+            </div>
+            <button onClick={handleCancelRequest} disabled={connectLoading}
+              style={{ ...editBtn, width: '100%', textAlign: 'center' }}>
+              {connectLoading ? '취소 중...' : '신청 취소'}
+            </button>
+          </div>
+        )}
+        {!profile.doctor_name && !pendingReq && !connectMode && (
+          <div>
+            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 12, padding: '10px 12px', background: C.bg, borderRadius: 10, lineHeight: 1.6 }}>
+              담당 의사가 없습니다. 연결하면 기록 제출 및 AI 분석을 이용할 수 있습니다.
+            </div>
+            <button onClick={() => setConnectMode(true)}
+              style={{ ...editBtn, width: '100%', textAlign: 'center', color: C.primary, borderColor: C.primary, fontWeight: 700 }}>
+              + 담당 의사 연결 신청
+            </button>
+          </div>
+        )}
+        {connectMode && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>병원 선택</label>
+              <select value={selHospital} onChange={e => handleHospitalChange(Number(e.target.value) || '')} style={selectSt}>
+                <option value="">병원을 선택하세요</option>
+                {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>담당 의사 선택</label>
+              <select value={selDoctor} onChange={e => setSelDoctor(Number(e.target.value) || '')}
+                disabled={!selHospital} style={{ ...selectSt, opacity: !selHospital ? 0.6 : 1 }}>
+                <option value="">{selHospital ? '담당 의사를 선택하세요' : '먼저 병원을 선택하세요'}</option>
+                {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            {connectError && <p style={{ margin: 0, fontSize: 12, color: C.danger }}>{connectError}</p>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={cancelBtnStyle} onClick={() => { setConnectMode(false); setConnectError(''); setSelHospital(''); setSelDoctor('') }}>취소</button>
+              <button onClick={handleConnectRequest} disabled={connectLoading || !selDoctor}
+                style={saveBtnStyle(connectLoading || !selDoctor, false)}>
+                {connectLoading ? '신청 중...' : '연결 신청'}
+              </button>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* 나의 특이사항 */}
       <SectionCard>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>나의 특이사항</h2>
             <p style={{ margin: '3px 0 0', fontSize: 11, color: C.textMuted }}>담당 의사에게 공유되며 AI 맞춤 질문 생성에 활용됩니다</p>
           </div>
-          <button onClick={saveMemo} disabled={memoSaving || !memoChanged} style={saveBtn(memoSaving || !memoChanged, memoSaved)}>
+          <button onClick={saveMemo} disabled={memoSaving || !memoChanged} style={saveBtnStyle(memoSaving || !memoChanged, memoSaved)}>
             {memoSaving ? '저장 중...' : memoSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
-        <textarea
-          value={memo}
-          onChange={e => setMemo(e.target.value)}
-          placeholder="평소 특이사항을 자유롭게 적어주세요. (예: 최근 식욕 감소, 수면 부족, 다리 부종)"
-          rows={4}
-          style={{
-            width: '100%', padding: '11px 13px', borderRadius: 10,
-            border: `1.5px solid ${memoChanged ? C.primary : C.border}`,
-            fontSize: 13, fontFamily: 'inherit', color: C.text,
-            resize: 'vertical', outline: 'none', background: '#fafafa',
-            lineHeight: 1.7, boxSizing: 'border-box', transition: 'border-color 0.15s',
-          }}
+        <textarea value={memo} onChange={e => setMemo(e.target.value)}
+          placeholder="평소 특이사항을 자유롭게 적어주세요." rows={4}
+          style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: `1.5px solid ${memoChanged ? C.primary : C.border}`, fontSize: 13, fontFamily: 'inherit', color: C.text, resize: 'vertical', outline: 'none', background: '#fafafa', lineHeight: 1.7, boxSizing: 'border-box' }}
         />
       </SectionCard>
 
-      {/* ── 기본 정보 수정 ── */}
+      {/* 기본 정보 수정 */}
       <SectionCard>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editProfile ? 14 : 0 }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>기본 정보 수정</h2>
-          {!editProfile && (
-            <button style={editBtn} onClick={() => { setEditProfile(true); setProfError(''); setProfPw('') }}>
-              수정하기
-            </button>
-          )}
+          {!editProfile && <button style={editBtn} onClick={() => { setEditProfile(true); setProfError(''); setProfPw('') }}>수정하기</button>}
         </div>
         {editProfile && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -307,12 +382,8 @@ export default function PatientMyPage() {
             <InputField label="현재 비밀번호 *" type="password" value={profPw} onChange={setProfPw} placeholder="변경 확인을 위해 입력" />
             {profError && <p style={{ margin: 0, fontSize: 12, color: C.danger }}>{profError}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-              <button style={cancelBtn} onClick={() => { setEditProfile(false); setEditName(profile.name); setEditBirth(profile.birth_date ?? ''); setProfError('') }}>취소</button>
-              <button
-                onClick={saveProfile}
-                disabled={profSaving || !profPw || !editName.trim()}
-                style={saveBtn(profSaving || !profPw || !editName.trim(), profSaved)}
-              >
+              <button style={cancelBtnStyle} onClick={() => { setEditProfile(false); setEditName(profile.name); setEditBirth(profile.birth_date ?? ''); setProfError('') }}>취소</button>
+              <button onClick={saveProfile} disabled={profSaving || !profPw || !editName.trim()} style={saveBtnStyle(profSaving || !profPw || !editName.trim(), profSaved)}>
                 {profSaving ? '저장 중...' : profSaved ? '✓ 저장됨' : '저장'}
               </button>
             </div>
@@ -320,15 +391,11 @@ export default function PatientMyPage() {
         )}
       </SectionCard>
 
-      {/* ── 전화번호 변경 ── */}
+      {/* 전화번호 변경 */}
       <SectionCard>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editPhone ? 14 : 0 }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>전화번호 변경</h2>
-          {!editPhone && (
-            <button style={editBtn} onClick={() => { setEditPhone(true); setPhoneError(''); setPhonePw(''); setNewPhone(profile.phone_number) }}>
-              수정하기
-            </button>
-          )}
+          {!editPhone && <button style={editBtn} onClick={() => { setEditPhone(true); setPhoneError(''); setPhonePw(''); setNewPhone(profile.phone_number) }}>수정하기</button>}
         </div>
         {editPhone && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -336,12 +403,8 @@ export default function PatientMyPage() {
             <InputField label="현재 비밀번호 *" type="password" value={phonePw} onChange={setPhonePw} placeholder="변경 확인을 위해 입력" />
             {phoneError && <p style={{ margin: 0, fontSize: 12, color: C.danger }}>{phoneError}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-              <button style={cancelBtn} onClick={() => { setEditPhone(false); setPhoneError('') }}>취소</button>
-              <button
-                onClick={savePhone}
-                disabled={phoneSaving || !phonePw || newPhone === profile.phone_number}
-                style={saveBtn(phoneSaving || !phonePw || newPhone === profile.phone_number, phoneSaved)}
-              >
+              <button style={cancelBtnStyle} onClick={() => { setEditPhone(false); setPhoneError('') }}>취소</button>
+              <button onClick={savePhone} disabled={phoneSaving || !phonePw || newPhone === profile.phone_number} style={saveBtnStyle(phoneSaving || !phonePw || newPhone === profile.phone_number, phoneSaved)}>
                 {phoneSaving ? '저장 중...' : phoneSaved ? '✓ 저장됨' : '변경'}
               </button>
             </div>
@@ -349,29 +412,21 @@ export default function PatientMyPage() {
         )}
       </SectionCard>
 
-      {/* ── 비밀번호 변경 ── */}
+      {/* 비밀번호 변경 */}
       <SectionCard>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editPw ? 14 : 0 }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>비밀번호 변경</h2>
-          {!editPw && (
-            <button style={editBtn} onClick={() => { setEditPw(true); setPwError(''); setCurPw(''); setNewPw(''); setConfirmPw('') }}>
-              수정하기
-            </button>
-          )}
+          {!editPw && <button style={editBtn} onClick={() => { setEditPw(true); setPwError(''); setCurPw(''); setNewPw(''); setConfirmPw('') }}>수정하기</button>}
         </div>
         {editPw && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <InputField label="현재 비밀번호" type="password" value={curPw}     onChange={setCurPw}     placeholder="현재 비밀번호" autoFocus />
-            <InputField label="새 비밀번호"   type="password" value={newPw}     onChange={setNewPw}     placeholder="6자 이상" />
+            <InputField label="현재 비밀번호" type="password" value={curPw} onChange={setCurPw} placeholder="현재 비밀번호" autoFocus />
+            <InputField label="새 비밀번호" type="password" value={newPw} onChange={setNewPw} placeholder="6자 이상" />
             <InputField label="새 비밀번호 확인" type="password" value={confirmPw} onChange={setConfirmPw} placeholder="새 비밀번호 재입력" />
             {pwError && <p style={{ margin: 0, fontSize: 12, color: C.danger }}>{pwError}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-              <button style={cancelBtn} onClick={() => { setEditPw(false); setPwError('') }}>취소</button>
-              <button
-                onClick={savePw}
-                disabled={pwSaving || !curPw || !newPw || !confirmPw}
-                style={saveBtn(pwSaving || !curPw || !newPw || !confirmPw, pwSaved)}
-              >
+              <button style={cancelBtnStyle} onClick={() => { setEditPw(false); setPwError('') }}>취소</button>
+              <button onClick={savePw} disabled={pwSaving || !curPw || !newPw || !confirmPw} style={saveBtnStyle(pwSaving || !curPw || !newPw || !confirmPw, pwSaved)}>
                 {pwSaving ? '변경 중...' : pwSaved ? '✓ 변경됨' : '비밀번호 변경'}
               </button>
             </div>
@@ -383,43 +438,27 @@ export default function PatientMyPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-      {/* 헤더 */}
-      <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, height: 56,
-        background: C.primary, display: 'flex', alignItems: 'center',
-        padding: '0 20px', zIndex: 100, boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
-      }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '5px 12px', fontFamily: 'inherit' }}
-        >← 뒤로</button>
-        <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, letterSpacing: '-0.03em', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-          마이페이지
-        </span>
+      <header style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: C.primary, display: 'flex', alignItems: 'center', padding: '0 20px', zIndex: 100, boxShadow: '0 2px 8px rgba(124,58,237,0.25)' }}>
+        <button onClick={() => navigate(-1)}
+          style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '5px 12px', fontFamily: 'inherit' }}>
+          ← 뒤로
+        </button>
+        <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, letterSpacing: '-0.03em', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>마이페이지</span>
       </header>
 
       <main style={{ paddingTop: 72, paddingBottom: 48, paddingLeft: isMobile ? 16 : 32, paddingRight: isMobile ? 16 : 32, maxWidth: isMobile ? undefined : 960, margin: '0 auto' }}>
-        {/* 페이지 제목 (데스크톱에서만) */}
         {!isMobile && (
           <div style={{ marginBottom: 24 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>마이페이지</h1>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textMuted }}>계정 정보 확인 및 수정</p>
           </div>
         )}
-
         {isMobile ? (
-          <>
-            <ProfileCard />
-            <EditSections />
-          </>
+          <>{profileCard}{editSections}</>
         ) : (
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-            <div style={{ flex: '0 0 280px' }}>
-              <ProfileCard />
-            </div>
-            <div style={{ flex: 1 }}>
-              <EditSections />
-            </div>
+            <div style={{ flex: '0 0 280px' }}>{profileCard}</div>
+            <div style={{ flex: 1 }}>{editSections}</div>
           </div>
         )}
       </main>

@@ -7,6 +7,7 @@ export interface User {
   id: number
   name: string
   role: UserRole
+  doctor_id: number | null
 }
 
 export interface LoginRequest {

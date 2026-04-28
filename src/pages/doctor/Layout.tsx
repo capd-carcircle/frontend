@@ -392,7 +392,7 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
                 marginTop: 4,
                 borderTop: `1px solid ${C.border}`,
                 cursor: 'pointer',
-                display: 'flex',                 display: 'flex', alignItems: 'center', gap: 10,
+                display: 'flex', alignItems: 'center', gap: 10,
                 fontSize: 13, color: C.textMuted,
               }}
             >

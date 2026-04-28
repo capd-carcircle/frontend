@@ -24,7 +24,7 @@ const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('user_name', data.name)
       localStorage.setItem('user_role', data.role)
       set({
-        user: { id: data.user_id, name: data.name, role: data.role },
+        user: { id: data.user_id, name: data.name, role: data.role, doctor_id: null },
         isLoading: false,
       })
       return data.role

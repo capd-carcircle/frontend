@@ -276,21 +276,18 @@ export default function RecordListPage() {
       <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
         {/* 담당 의사 없음 배너 */}
         {hasDoctor === false && (
-          <div style={{
-            background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12,
-            padding: '14px 18px', marginBottom: 16,
-            display: 'flex', alignItems: 'flex-start', gap: 10,
-          }}>
-            <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>⚠️</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 3 }}>
-                담당 의사가 없습니다
-              </div>
-              <div style={{ fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>
-                현재 담당 의사가 지정되어 있지 않아 기록을 제출할 수 없습니다.<br />
-                병원에 문의하거나 마이페이지에서 담당 연결 요청을 보내주세요.
+          <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 3 }}>담당 의사가 없습니다</div>
+                <div style={{ fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>담당 의사가 지정되어야 기록을 제출할 수 있습니다.</div>
               </div>
             </div>
+            <button onClick={() => navigate('/patient/mypage')}
+              style={{ width: '100%', padding: '10px', borderRadius: 9, background: '#d97706', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              담당 의사 연결하기 →
+            </button>
           </div>
         )}
         {loading ? (

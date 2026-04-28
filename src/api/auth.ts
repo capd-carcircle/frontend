@@ -50,20 +50,40 @@ export async function doctorComplete(payload: {
   await client.post('/api/v1/registration/doctor/complete', payload)
 }
 
-// ── 환자 가입 ──────────────────────────────────────────────
+// ── 환자 가입 (즉시 가입, 의사 승인 없음) ────────────────────
 
 export async function patientRequest(payload: {
   name: string
   birth_date: string
-  hospital_id: number
-  doctor_id: number
-}): Promise<{ registration_id: number }> {
+  hospital_id?: number
+  phone_number: string
+  password: string
+}): Promise<{ user_id: number }> {
   const { data } = await client.post('/api/v1/registration/patient/request', payload)
   return data
 }
 
-export async function patientCancelRequest(registration_id: number): Promise<void> {
+// ── 환자: 담당 의사 연결 신청 (로그인 후) ────────────────────
+
+export async function patientConnectRequest(doctor_id: number): Promise<{ registration_id: number }> {
+  const { data } = await client.post('/api/v1/registration/patient/connect-request', { doctor_id })
+  return data
+}
+
+export async function getMyPendingRequest(): Promise<{
+  request: { id: number; request_type: string; doctor_name: string | null; status: string } | null
+}> {
+  const { data } = await client.get('/api/v1/registration/patient/my-request')
+  return data
+}
+
+export async function cancelMyRequest(registration_id: number): Promise<void> {
   await client.delete(`/api/v1/registration/patient/request/${registration_id}`)
+}
+
+export async function patientDischargeRequest(reason?: string): Promise<{ registration_id: number }> {
+  const { data } = await client.post('/api/v1/registration/patient/discharge-request', { reason })
+  return data
 }
 
 export async function getRegistrationStatus(registration_id: number): Promise<{
@@ -73,14 +93,6 @@ export async function getRegistrationStatus(registration_id: number): Promise<{
 }> {
   const { data } = await client.get(`/api/v1/registration/patient/status/${registration_id}`)
   return data
-}
-
-export async function patientComplete(payload: {
-  registration_id: number
-  phone_number: string
-  password: string
-}): Promise<void> {
-  await client.post('/api/v1/registration/patient/complete', payload)
 }
 
 // ── 의사용: 환자 가입 승인/거절 ────────────────────────────
