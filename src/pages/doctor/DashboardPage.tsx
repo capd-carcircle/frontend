@@ -803,9 +803,9 @@ export default function DashboardPage() {
       {PatientList}
 
       <style>{`
-        .clickable-name { display: inline-block; padding: 2px 6px; border-radius: 6px; transition: background 0.15s, color 0.15s, transform 0.1s; cursor: pointer; }
-        .clickable-name:hover { background: var(--capd-primary-light); color: var(--capd-primary); }
-        .clickable-name:active { background: var(--capd-primary); color: #fff; transform: scale(0.96); }
+        .clickable-name { display: inline-block; cursor: pointer; transition: color 0.12s; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+        .clickable-name:hover { color: var(--capd-primary); text-decoration: underline; }
+        .clickable-name:active { color: var(--capd-primary-dark); transform: scale(0.97); }
       `}</style>
     </main>
   )

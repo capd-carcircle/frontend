@@ -17,6 +17,25 @@ interface PatientInfo {
   id: number;
   name: string;
   phone_number: string;
+  birth_date: string | null;
+  gender: string | null;
+}
+
+function calcAge(birth_date: string | null): number | null {
+  if (!birth_date) return null
+  const today = new Date(); const birth = new Date(birth_date + 'T00:00:00')
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
+}
+function patientLabel(p: PatientInfo): string {
+  const age = calcAge(p.birth_date)
+  const g = p.gender === 'm' ? '남' : p.gender === 'f' ? '여' : null
+  if (age !== null && g) return `${p.name}(${age}/${g})`
+  if (age !== null) return `${p.name}(${age})`
+  if (g) return `${p.name}(${g})`
+  return p.name
 }
 
 /* ── 아이콘 ─────────────────────────────────────────────── */
@@ -161,7 +180,7 @@ function PatientPicker({ allPatients, selectedIds, onChange }: {
               border: `1px solid ${COLOR.primary}44`,
               fontSize: 12, fontWeight: 600,
             }}>
-              <IconUser /> {p.name}
+              <IconUser /> {patientLabel(p)}
               <button type="button" onClick={() => toggle(p.id)} style={{
                 background: "none", border: "none", cursor: "pointer",
                 color: COLOR.primary, padding: 0, display: "flex", alignItems: "center",
@@ -241,7 +260,7 @@ function PatientPicker({ allPatients, selectedIds, onChange }: {
                       style={{ width: 15, height: 15, accentColor: COLOR.primary, cursor: "pointer" }}
                     />
                     <span style={{ fontSize: 13, color: COLOR.text, fontWeight: checked ? 600 : 400 }}>
-                      {p.name}
+                      {patientLabel(p)}
                     </span>
                     <span style={{ fontSize: 11, color: COLOR.textMuted, marginLeft: "auto" }}>
                       {p.phone_number}
