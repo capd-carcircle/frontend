@@ -123,7 +123,7 @@ function PatientCard({ p, query, onClick, isCurrent }: {
       cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: isCurrent ? 1 : 0.82,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
-        <span style={{ fontWeight: 700, fontSize: 15, color: C.primaryDark, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+        <span className="clickable-name" style={{ fontWeight: 700, fontSize: 15, color: C.primaryDark }}>
           <Highlight text={patientLabel(p.name, p.birth_date, p.gender)} query={query} />
         </span>
         <span style={{ fontSize: 11, color: C.textMuted, background: C.bg, borderRadius: 5, padding: '2px 6px', fontWeight: 600 }}>
@@ -309,7 +309,12 @@ function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
           )}
         </div>
       </div>
-      <style>{`@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .clickable-name { display: inline-block; padding: 2px 6px; border-radius: 6px; transition: background 0.15s, color 0.15s, transform 0.1s; cursor: pointer; }
+        .clickable-name:hover { background: var(--capd-primary-light); color: var(--capd-primary); }
+        .clickable-name:active { background: var(--capd-primary); color: #fff; transform: scale(0.96); }
+      `}</style>
     </>
   )
 }
@@ -497,7 +502,7 @@ export default function PatientListPage() {
                       onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
                       onMouseLeave={e => (e.currentTarget.style.background = isOverdue ? '#fffef0' : '#fff')}
                     >
-                      <td style={{ padding: '12px 14px', fontWeight: 700, color: C.primaryDark, textDecoration: 'underline', textUnderlineOffset: 3 }}><Highlight text={patientLabel(p.name, p.birth_date, p.gender)} query={query} /></td>
+                      <td style={{ padding: '12px 14px', fontWeight: 700 }}><span className="clickable-name" style={{ color: C.primaryDark }}><Highlight text={patientLabel(p.name, p.birth_date, p.gender)} query={query} /></span></td>
                       <td style={{ padding: '12px 14px', color: C.textMuted, fontSize: 12 }}>#{String(p.id).padStart(4, '0')}</td>
                       <td style={{ padding: '12px 14px', color: C.textMuted }}><Highlight text={p.phone_number} query={query} /></td>
                       <td style={{ padding: '12px 14px' }}>

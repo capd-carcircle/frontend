@@ -48,7 +48,7 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
     const token = localStorage.getItem('access_token')
     if (!token) return
     try {
-      const res = await fetch(`${API}/api/v1/patient-registrations/pending`, {
+      const res = await fetch(`${API}/api/v1/registration/doctor/pending`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
@@ -60,8 +60,10 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
 
   useEffect(() => {
     fetchPendingCount()
-    const interval = setInterval(fetchPendingCount, 60000)
-    return () => clearInterval(interval)
+    const interval = setInterval(fetchPendingCount, 15000)
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchPendingCount() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible) }
   }, [fetchPendingCount])
 
   useEffect(() => {

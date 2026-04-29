@@ -365,11 +365,8 @@ function PatientCard({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span
           onClick={onNameClick}
-          style={{
-            fontWeight: 700, fontSize: 15, color: C.primaryDark,
-            borderBottom: `1px dashed ${C.primaryDark}60`,
-            paddingBottom: 1, cursor: 'pointer', flexShrink: 0,
-          }}
+          className="clickable-name"
+          style={{ fontWeight: 700, fontSize: 15, color: C.primaryDark, flexShrink: 0 }}
         >
           <Highlight text={patientLabel(patient.name, patient.birth_date, patient.gender, refDate)} query={searchQuery} />
         </span>
@@ -681,7 +678,7 @@ export default function DashboardPage() {
               >
                 <td style={{ padding: '12px 12px', fontWeight: 700, fontSize: 14 }}
                   onClick={e => { e.stopPropagation(); navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } }) }}>
-                  <span style={{ color: C.primaryDark, cursor: 'pointer', borderBottom: `1px dashed ${C.primaryDark}60`, paddingBottom: 1 }}>
+                  <span className="clickable-name" style={{ color: C.primaryDark }}>
                     <Highlight text={patientLabel(p.name, p.birth_date, p.gender, toDateStr(currentDate))} query={searchQuery} />
                   </span>
                 </td>
@@ -805,6 +802,11 @@ export default function DashboardPage() {
       {/* 환자 목록 */}
       {PatientList}
 
+      <style>{`
+        .clickable-name { display: inline-block; padding: 2px 6px; border-radius: 6px; transition: background 0.15s, color 0.15s, transform 0.1s; cursor: pointer; }
+        .clickable-name:hover { background: var(--capd-primary-light); color: var(--capd-primary); }
+        .clickable-name:active { background: var(--capd-primary); color: #fff; transform: scale(0.96); }
+      `}</style>
     </main>
   )
 }
