@@ -117,10 +117,11 @@ function PatientCard({ p, query, onClick, isCurrent }: {
 }) {
   const isOverdue = isCurrent && p.days_since_last_record !== null && p.days_since_last_record >= 3
   return (
-    <div onClick={onClick} style={{
+    <div onClick={onClick} className="patient-card" style={{
       background: '#fff', border: `1px solid ${isOverdue ? '#fcd34d' : C.border}`,
       borderRadius: 12, padding: '14px 16px', marginBottom: 8,
       cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: isCurrent ? 1 : 0.82,
+      transition: 'box-shadow 0.15s, border-color 0.15s',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
         <span className="clickable-name" style={{ fontWeight: 700, fontSize: 15, color: C.primaryDark }}>
@@ -314,6 +315,9 @@ function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
         .clickable-name { display: inline-block; cursor: pointer; transition: color 0.12s; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
         .clickable-name:hover { color: var(--capd-primary); text-decoration: underline; }
         .clickable-name:active { color: var(--capd-primary-dark); transform: scale(0.97); }
+        .patient-row:hover .clickable-name { color: var(--capd-primary); text-decoration: underline; }
+        .patient-card:hover .clickable-name { color: var(--capd-primary); text-decoration: underline; }
+        .patient-card:hover { border-color: var(--capd-primary) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.10) !important; }
       `}</style>
     </>
   )
@@ -498,8 +502,9 @@ export default function PatientListPage() {
                   const isOverdue = scope === 'current' && p.days_since_last_record !== null && p.days_since_last_record >= 3
                   return (
                     <tr key={p.id} onClick={() => setDrawerPatientId(p.id)}
-                      style={{ borderBottom: idx < filtered.length - 1 ? `1px solid ${C.border}` : 'none', background: isOverdue ? '#fffef0' : '#fff', cursor: 'pointer', opacity: scope === 'past' ? 0.82 : 1 }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                      className="patient-row"
+                      style={{ borderBottom: idx < filtered.length - 1 ? `1px solid ${C.border}` : 'none', background: isOverdue ? '#fffef0' : '#fff', cursor: 'pointer', opacity: scope === 'past' ? 0.82 : 1, transition: 'background 0.12s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--capd-primary-light)')}
                       onMouseLeave={e => (e.currentTarget.style.background = isOverdue ? '#fffef0' : '#fff')}
                     >
                       <td style={{ padding: '12px 14px', fontWeight: 700 }}><span className="clickable-name" style={{ color: C.primaryDark }}><Highlight text={patientLabel(p.name, p.birth_date, p.gender)} query={query} /></span></td>
