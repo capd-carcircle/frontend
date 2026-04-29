@@ -307,7 +307,7 @@ td{padding:6px 8px;border:1px solid #e5e7eb;font-size:11px;vertical-align:top}tr
 <div class="info">생년월일: ${d.patient.birth_date ?? '—'} | 성별: ${d.patient.gender ?? '—'} | 전화: ${d.patient.phone_number}<br>
 병원: ${d.patient.hospital ?? '—'} | 담당의: ${d.doctor_name} | 기간: ${pdfStart || '전체'} ~ ${pdfEnd || '전체'}<br>
 내보내기: ${new Date().toLocaleString('ko-KR')}</div>
-<table><thead><tr><th>날짜</th><th>체중(kg)</th><th>혈압</th><th>한외여과(mL)</th><th>혈당(mg/dL)</th><th>투석액</th><th>위험도</th><th>메모</th></tr></thead>
+<table><thead><tr><th>날짜</th><th>체중(kg)</th><th>혈압</th><th>제수량(mL)</th><th>혈당(mg/dL)</th><th>투석액</th><th>위험도</th><th>메모</th></tr></thead>
 <tbody>${rows}</tbody></table></body></html>`
     const win = window.open('', '_blank')
     if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 300) }
@@ -388,7 +388,7 @@ td{padding:6px 8px;border:1px solid #e5e7eb;font-size:11px;vertical-align:top}tr
                     <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: C.textMuted }}>최근 14일</span>
                   </h3>
                   <Sparkline data={trend} field="weight" color={C.primary} label="체중" unit="kg" />
-                  <Sparkline data={trend} field="total_ultrafiltration" color={C.success} label="한외여과" unit="mL" />
+                  <Sparkline data={trend} field="total_ultrafiltration" color={C.success} label="제수량" unit="mL" />
                 </div>
               )}
 

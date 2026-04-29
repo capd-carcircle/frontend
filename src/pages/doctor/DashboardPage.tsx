@@ -428,6 +428,182 @@ function PatientCard({
   )
 }
 
+/* ═══════════════ 대시보드 환자 드로어 ═══════════════ */
+interface DashDrawerProfile {
+  id: number; name: string; phone_number: string
+  birth_date: string | null; gender: string | null
+  hospital_name: string | null; doctor_name: string | null
+  self_memo: string | null; joined_at: string | null
+}
+
+function DashDrawer({
+  patientId, record, onClose, navigate,
+}: {
+  patientId: number
+  record: TodayRecord | null
+  onClose: () => void
+  navigate: ReturnType<typeof useNavigate>
+}) {
+  const [profile,  setProfile]  = useState<DashDrawerProfile | null>(null)
+  const [loading,  setLoading]  = useState(true)
+  const [note,     setNote]     = useState('')
+  const [origNote, setOrigNote] = useState('')
+  const [saving,   setSaving]   = useState(false)
+  const [saved,    setSaved]    = useState(false)
+  const token = () => localStorage.getItem('access_token') ?? ''
+
+  useEffect(() => {
+    setLoading(true); setProfile(null)
+    const t = token()
+    Promise.all([
+      fetch(`${API}/api/v1/patients/${patientId}/profile`, { headers: { Authorization: `Bearer ${t}` } })
+        .then(r => r.ok ? r.json() : null),
+      fetch(`${API}/api/v1/patients/${patientId}/note`, { headers: { Authorization: `Bearer ${t}` } })
+        .then(r => r.ok ? r.json() : { content: '' }),
+    ]).then(([prof, noteData]) => {
+      setProfile(prof)
+      const c = noteData?.content ?? ''; setNote(c); setOrigNote(c)
+    }).finally(() => setLoading(false))
+  }, [patientId])
+
+  const handleSaveNote = async () => {
+    setSaving(true)
+    try {
+      await fetch(`${API}/api/v1/patients/${patientId}/note`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: note }),
+      })
+      setOrigNote(note); setSaved(true); setTimeout(() => setSaved(false), 2000)
+    } finally { setSaving(false) }
+  }
+
+  const noteChanged = note !== origNote
+  const summary = extractAiSummary(record?.ai_summary ?? null)
+
+  const DRow = ({ label, value }: { label: string; value?: string | null }) => (
+    <div style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+      <span style={{ minWidth: 80, fontSize: 12, color: C.textMuted, fontWeight: 600, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 12, color: C.text }}>{value || '—'}</span>
+    </div>
+  )
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.28)', zIndex: 300 }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: 'min(460px, 92vw)', background: '#fff',
+        boxShadow: '-4px 0 24px rgba(0,0,0,0.14)', zIndex: 301,
+        display: 'flex', flexDirection: 'column',
+        animation: 'dashDrawerIn 0.22s ease',
+      }}>
+        {/* 헤더 */}
+        <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 13, color: C.textMuted, fontFamily: 'inherit' }}>
+            ✕
+          </button>
+          {profile && (
+            <>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>
+                  {patientLabel(profile.name, profile.birth_date, profile.gender)}
+                </div>
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>#{String(patientId).padStart(4, '0')}</div>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                {record && (
+                  <button
+                    onClick={() => { onClose(); navigate('/doctor/record', { state: { recordId: record.record_id, patientName: profile.name, patientBirthDate: profile.birth_date, patientGender: profile.gender } }) }}
+                    style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                  >
+                    기록 상세 →
+                  </button>
+                )}
+                <button
+                  onClick={() => { onClose(); navigate(`/doctor/patients/${patientId}`) }}
+                  style={{ background: '#f3f4f6', color: C.textMuted, border: 'none', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                >
+                  환자 페이지
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px' }}>
+          {loading && <p style={{ color: C.textMuted, fontSize: 13 }}>불러오는 중...</p>}
+
+          {/* 오늘 기록 */}
+          {record ? (
+            <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: '14px 16px', marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text }}>당일 기록</h3>
+                <StatusBadge status={record.status} />
+                <RiskBadge level={record.risk_level} />
+              </div>
+              {summary ? (
+                <p style={{ margin: 0, fontSize: 12, color: C.textMuted, lineHeight: 1.7, whiteSpace: 'pre-wrap',
+                  display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {summary}
+                </p>
+              ) : (
+                <p style={{ margin: 0, fontSize: 12, color: C.textLight, fontStyle: 'italic' }}>AI 요약 없음</p>
+              )}
+              {record.unreviewed_ai_count > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: C.warningLight, color: C.warning, border: `1px solid #fcd34d`, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 600 }}>
+                    ⚡ AI 질문 {record.unreviewed_ai_count}건 미검토
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ background: '#f9fafb', borderRadius: 12, border: `1px solid ${C.border}`, padding: '14px 16px', marginBottom: 14, color: C.textMuted, fontSize: 13, textAlign: 'center' }}>
+              이 날 제출된 기록이 없습니다
+            </div>
+          )}
+
+          {/* 기본 정보 */}
+          {!loading && profile && (
+            <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: '14px 16px', marginBottom: 14 }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 800, color: C.text }}>기본 정보</h3>
+              <DRow label="전화번호" value={profile.phone_number} />
+              <DRow label="생년월일" value={profile.birth_date ?? null} />
+              <DRow label="병원"     value={profile.hospital_name} />
+              <DRow label="가입일"   value={profile.joined_at ? new Date(profile.joined_at).toLocaleDateString('ko-KR') : null} />
+              {profile.self_memo && (
+                <div style={{ marginTop: 8, padding: '8px 10px', background: '#fff', borderRadius: 8, border: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 600, marginBottom: 4 }}>환자 메모</div>
+                  <p style={{ margin: 0, fontSize: 12, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{profile.self_memo}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 의사 메모 */}
+          {!loading && (
+            <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text }}>의사 메모</h3>
+                <button onClick={handleSaveNote} disabled={saving || !noteChanged}
+                  style={{ background: saved ? C.success : noteChanged ? C.primary : '#e5e7eb', color: noteChanged || saved ? '#fff' : C.textMuted, border: 'none', borderRadius: 7, padding: '5px 12px', cursor: noteChanged ? 'pointer' : 'default', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                  {saving ? '저장 중...' : saved ? '✓ 저장됨' : '저장'}
+                </button>
+              </div>
+              <textarea value={note} onChange={e => setNote(e.target.value)}
+                placeholder="이 환자에 대한 메모를 입력하세요." rows={3}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: `1.5px solid ${noteChanged ? C.primary : C.border}`, fontSize: 12, fontFamily: 'inherit', color: C.text, resize: 'vertical', outline: 'none', background: '#fafafa', lineHeight: 1.7, boxSizing: 'border-box', transition: 'border-color 0.15s' }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      <style>{`@keyframes dashDrawerIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+    </>
+  )
+}
+
 /* ═══════════════ 메인 컴포넌트 ═══════════════ */
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -441,8 +617,9 @@ export default function DashboardPage() {
   const [searchQuery,   setSearchQuery]   = useState('')
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all')
   const [isMobile,      setIsMobile]      = useState(window.innerWidth < MOBILE_BP)
-  const [selectedIds,   setSelectedIds]   = useState<Set<number>>(new Set())
-  const [bulkApproving, setBulkApproving] = useState(false)
+  const [selectedIds,     setSelectedIds]     = useState<Set<number>>(new Set())
+  const [bulkApproving,   setBulkApproving]   = useState(false)
+  const [drawerPatientId, setDrawerPatientId] = useState<number | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -681,7 +858,7 @@ export default function DashboardPage() {
             }}
             onNameClick={e => {
               e.stopPropagation()
-              navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } })
+              setDrawerPatientId(p.id)
             }}
             selected={rec ? selectedIds.has(rec.record_id) : false}
             onToggleSelect={rec ? () => toggleSelect(rec.record_id) : undefined}
@@ -760,7 +937,7 @@ export default function DashboardPage() {
                   )}
                 </td>
                 <td style={{ padding: '12px 12px', fontWeight: 700, fontSize: 14 }}
-                  onClick={e => { e.stopPropagation(); navigate(`/doctor/patients/${p.id}`, { state: { patientName: p.name } }) }}>
+                  onClick={e => { e.stopPropagation(); setDrawerPatientId(p.id) }}>
                   <span className="clickable-name" style={{ color: C.primaryDark }}>
                     <Highlight text={patientLabel(p.name, p.birth_date, p.gender, toDateStr(currentDate))} query={searchQuery} />
                   </span>
@@ -884,6 +1061,16 @@ export default function DashboardPage() {
 
       {/* 환자 목록 */}
       {PatientList}
+
+      {/* 환자 드로어 */}
+      {drawerPatientId !== null && (
+        <DashDrawer
+          patientId={drawerPatientId}
+          record={recordMap.get(drawerPatientId) ?? null}
+          onClose={() => setDrawerPatientId(null)}
+          navigate={navigate}
+        />
+      )}
 
       {/* 일괄 승인 플로팅 바 */}
       {selectedIds.size > 0 && (
