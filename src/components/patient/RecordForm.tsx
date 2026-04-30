@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { DailyRecordCreate, DailyRecordResponse, ExchangeRecord } from '../../api/records'
 
 const C = {
@@ -88,6 +88,33 @@ export default function RecordForm({
   const [urineCount, setUrineCount]       = useState(initialData?.urine_count?.toString() ?? '')
   const [fastingGlucose, setFasting]      = useState(initialData?.fasting_blood_glucose?.toString() ?? '')
   const [memo, setMemo]                   = useState(initialData?.memo ?? '')
+
+  // ── 수치 소프트 경고 (블락 아님, 참고용) ──────────────────────
+  const softWarnings = useMemo(() => {
+    if (isReadOnly) return []
+    const warns: string[] = []
+    const sys = parseInt(bpSystolic, 10)
+    const dia = parseInt(bpDiastolic, 10)
+    if (!isNaN(sys) && bpSystolic !== '') {
+      if (sys > 200) warns.push(`수축기 혈압 ${sys} mmHg — 매우 높습니다. 값을 다시 확인해 주세요.`)
+      else if (sys < 70) warns.push(`수축기 혈압 ${sys} mmHg — 매우 낮습니다. 값을 다시 확인해 주세요.`)
+    }
+    if (!isNaN(dia) && bpDiastolic !== '') {
+      if (dia > 130) warns.push(`이완기 혈압 ${dia} mmHg — 매우 높습니다. 값을 다시 확인해 주세요.`)
+      else if (dia < 40) warns.push(`이완기 혈압 ${dia} mmHg — 매우 낮습니다. 값을 다시 확인해 주세요.`)
+    }
+    const wt = parseFloat(weight)
+    if (!isNaN(wt) && weight !== '') {
+      if (wt > 200) warns.push(`체중 ${wt} kg — 값을 다시 확인해 주세요.`)
+      else if (wt < 20) warns.push(`체중 ${wt} kg — 값을 다시 확인해 주세요.`)
+    }
+    const bg = parseFloat(fastingGlucose)
+    if (!isNaN(bg) && fastingGlucose !== '') {
+      if (bg > 500) warns.push(`공복혈당 ${bg} mg/dL — 매우 높습니다. 값을 다시 확인해 주세요.`)
+      else if (bg < 40) warns.push(`공복혈당 ${bg} mg/dL — 매우 낮습니다. 값을 다시 확인해 주세요.`)
+    }
+    return warns
+  }, [bpSystolic, bpDiastolic, weight, fastingGlucose, isReadOnly])
 
   // ── 교환 기록 셀 변경 핸들러 ──────────────────────────────────
   const handleExchange = (sessionIdx: number, field: keyof ExchangeRecord, value: string) => {
@@ -503,6 +530,27 @@ export default function RecordForm({
           />
         </div>
       </div>
+
+      {/* ── 수치 소프트 경고 배너 ────────────────────────────────── */}
+      {!isReadOnly && softWarnings.length > 0 && (
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: '#fffbeb',
+          border: '1px solid #fcd34d',
+          borderRadius: 12,
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#92400e', margin: 0 }}>
+            ⚠ 입력값 확인
+          </p>
+          {softWarnings.map((w, i) => (
+            <p key={i} style={{ fontSize: 13, color: '#b45309', margin: 0 }}>• {w}</p>
+          ))}
+          <p style={{ fontSize: 12, color: '#92400e', margin: 0, marginTop: 2 }}>
+            실제 측정값이 맞다면 그대로 제출하셔도 됩니다.
+          </p>
+        </div>
+      )}
 
       {/* ── 버튼 영역 ─────────────────────────────────────────────── */}
       {!isReadOnly && (

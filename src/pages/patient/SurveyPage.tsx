@@ -423,13 +423,14 @@ export default function SurveyPage() {
   const location = useLocation()
   const recordId: number | undefined = (location.state as { recordId?: number })?.recordId
 
-  const [commonQs,   setCommonQs]   = useState<CommonQuestion[]>([])
-  const [aiQs,       setAiQs]       = useState<AIQuestion[]>([])
-  const [answers,    setAnswers]     = useState<Record<string, Answer>>({})
-  const [loading,    setLoading]     = useState(true)
-  const [aiPending,  setAiPending]   = useState(false)
-  const [saving,     setSaving]      = useState(false)
-  const [completing, setCompleting]  = useState(false)
+  const [commonQs,        setCommonQs]        = useState<CommonQuestion[]>([])
+  const [aiQs,            setAiQs]            = useState<AIQuestion[]>([])
+  const [answers,         setAnswers]         = useState<Record<string, Answer>>({})
+  const [loading,         setLoading]         = useState(true)
+  const [aiPending,       setAiPending]       = useState(false)
+  const [surveyCompleted, setSurveyCompleted] = useState(false)
+  const [saving,          setSaving]          = useState(false)
+  const [completing,      setCompleting]      = useState(false)
   const saveToast = useToast(3000)
   const [completeError, setCompleteError] = useState('')
 
@@ -450,6 +451,7 @@ export default function SurveyPage() {
       setCommonQs(cqs)
       setAiQs(aqs)
       setAiPending(data.ai_pending ?? false)
+      setSurveyCompleted(data.survey_completed ?? false)
 
       setAnswers(prev => {
         const next = { ...prev }
@@ -576,7 +578,7 @@ export default function SurveyPage() {
     }
   }
 
-  // ── 설문 완료 → AI 요약 트리거 ───────────────────────
+  // ── 설문 완료 → AI 요약 백그라운드 트리거 후 즉시 이동 ───
   async function handleComplete() {
     if (!recordId || completing) return
     setCompleting(true)
@@ -621,13 +623,19 @@ export default function SurveyPage() {
     } catch { /* 저장 실패해도 complete 시도 */ }
     setSaving(false)
 
-    // AI 요약 요청
+    // AI 요약 백그라운드 트리거 → 즉시 완료 페이지로 이동
     try {
       await client.post(`/api/v1/surveys/complete/${recordId}`)
       navigate('/patient/survey/done', { state: { recordId }, replace: true })
-    } catch {
-      setCompleteError('AI 요약 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.')
-      setCompleting(false)
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status
+      if (status === 409) {
+        // 이미 제출된 설문 → 완료 페이지로 그냥 이동
+        navigate('/patient/survey/done', { state: { recordId }, replace: true })
+      } else {
+        setCompleteError('제출에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+        setCompleting(false)
+      }
     }
   }
 
@@ -650,7 +658,7 @@ export default function SurveyPage() {
     if (qType === 'short_text') return a.text.trim() !== ''
     return false
   })
-  const canComplete = allCommonAnswered && allAIAnswered && !aiPending
+  const canComplete = allCommonAnswered && allAIAnswered && !aiPending && !surveyCompleted
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f6fa' }}>
@@ -811,12 +819,14 @@ export default function SurveyPage() {
               disabled={!canComplete || completing}
             >
               {completing
-                ? '⏳ AI 요약 생성 중...'
-                : canComplete
-                  ? '✅ 설문 완료하기'
-                  : aiPending
-                    ? '🤖 AI 질문 생성 중...'
-                    : '모든 질문에 답변해주세요'}
+                ? '제출 중...'
+                : surveyCompleted
+                  ? '✅ 이미 제출된 설문입니다'
+                  : canComplete
+                    ? '✅ 설문 완료하기'
+                    : aiPending
+                      ? '🤖 AI 질문 생성 중...'
+                      : '모든 질문에 답변해주세요'}
             </button>
           </div>
         </div>

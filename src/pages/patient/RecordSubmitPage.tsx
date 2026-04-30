@@ -58,13 +58,21 @@ export default function RecordSubmitPage() {
   const saveToast = useToast(2500)
   const [error, setError]                 = useState<string | null>(null)
 
-  /* ── 오늘 기록 확인 ─────────────────────────────────────────── */
+  /* ── 오늘 기록 확인 (없으면 가장 최근 draft도 검색) ─────────── */
   useEffect(() => {
     const check = async () => {
       try {
         const records = await getMyRecords()
-        const existing = records.find((r) => r.record_date === todayStr()) ?? null
-        setTodayRecord(existing)
+        // 오늘 기록 우선, 없으면 가장 최근 draft (날짜 무관)
+        const todayRec = records.find((r) => r.record_date === todayStr()) ?? null
+        if (todayRec) {
+          setTodayRecord(todayRec)
+        } else {
+          const recentDraft = records
+            .filter((r) => r.status === 'draft')
+            .sort((a, b) => b.id - a.id)[0] ?? null
+          setTodayRecord(recentDraft)
+        }
       } catch {
         // 실패 시 빈 폼 표시
       } finally {
@@ -216,6 +224,8 @@ export default function RecordSubmitPage() {
               <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
                 {isSubmitted
                   ? '최종 제출된 기록입니다.'
+                  : todayRecord && todayRecord.record_date !== todayStr()
+                  ? `${todayRecord.record_date} 저장된 기록을 이어서 작성 중입니다.`
                   : todayRecord
                   ? '이어서 기록을 입력하고 최종 제출해 주세요.'
                   : '오늘의 CAPD 투석 기록을 입력해 주세요.'}
