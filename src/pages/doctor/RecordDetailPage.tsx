@@ -161,22 +161,133 @@ function SurveySection({ responses, type }: { responses: SurveyResponse[]; type:
   )
 }
 
-/* ── AI 요약 파싱 헬퍼 (DB에 JSON 문자열이 저장된 경우 대응) ── */
-function parseAiSummary(raw: string): string {
+/* ── AI 요약 타입 ── */
+interface AiFinding {
+  severity: 'critical' | 'warning' | 'info'
+  text: string
+}
+interface AiSummaryStructured {
+  findings: AiFinding[]
+  trend:    string | null
+  action:   string | null
+  keywords: string[]
+}
+
+/* ── AI 요약 파싱 헬퍼 ── */
+function parseAiSummary(raw: string): AiSummaryStructured | string {
   if (!raw) return ''
   const trimmed = raw.trim()
-  // JSON 형태로 시작하면 파싱 시도
+
+  // 구조화 JSON 형식 (새 형식: findings 키 존재)
   if (trimmed.startsWith('{')) {
     try {
       const parsed = JSON.parse(trimmed)
-      if (parsed.ai_summary) return parsed.ai_summary
+      // 새 구조화 형식
+      if (parsed.findings) return parsed as AiSummaryStructured
+      // 구 형식: ai_summary 텍스트가 들어있는 경우
+      if (parsed.ai_summary) return parsed.ai_summary as string
     } catch {
-      // 파싱 실패 시 regex로 ai_summary 값 추출 시도
       const m = trimmed.match(/"ai_summary"\s*:\s*"([\s\S]*?)"(?:\s*,|\s*\})/)
       if (m) return m[1].replace(/\\n/g, '\n')
     }
   }
   return trimmed
+}
+
+const SEVERITY_ICON: Record<string, string> = {
+  critical: '🔴',
+  warning:  '🟠',
+  info:     '🔵',
+}
+const SEVERITY_COLOR: Record<string, { bg: string; text: string; border: string }> = {
+  critical: { bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' },
+  warning:  { bg: '#FFFBEB', text: '#D97706', border: '#FDE68A' },
+  info:     { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' },
+}
+
+/* ── AI 요약 카드 렌더러 ── */
+function AiSummaryCard({ raw, patientLabel }: { raw: string; patientLabel: string }) {
+  const parsed = parseAiSummary(raw)
+
+  // plain text 폴백 (구형 데이터)
+  if (typeof parsed === 'string') {
+    return (
+      <Card style={{ background: C.primaryLight, border: `1px solid ${C.primaryDark}20`, padding: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, color: C.primaryDark, marginBottom: 12 }}>
+          ✦ AI 요약 ({patientLabel})
+        </div>
+        <div style={{ fontSize: 13, color: C.primaryDark, lineHeight: 1.8 }}>{parsed}</div>
+      </Card>
+    )
+  }
+
+  const { findings, trend, action, keywords } = parsed
+
+  return (
+    <Card style={{ padding: 20, border: '1px solid #E0E7FF', background: '#FAFBFF' }}>
+      {/* 헤더 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span style={{ fontWeight: 800, fontSize: 14, color: '#1E3A8A' }}>✦ AI 임상 요약</span>
+        <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 500 }}>({patientLabel})</span>
+      </div>
+
+      {/* 핵심 소견 목록 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: trend || action ? 14 : 0 }}>
+        {findings.map((f, i) => {
+          const col = SEVERITY_COLOR[f.severity] ?? SEVERITY_COLOR.info
+          return (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+              background: col.bg, border: `1px solid ${col.border}`,
+              borderRadius: 8, padding: '8px 12px',
+            }}>
+              <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{SEVERITY_ICON[f.severity] ?? '🔵'}</span>
+              <span style={{ fontSize: 12, color: col.text, lineHeight: 1.6, fontWeight: f.severity === 'critical' ? 700 : 500 }}>
+                {f.text}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 추세 */}
+      {trend && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 8,
+          background: '#F0F9FF', border: '1px solid #BAE6FD',
+          borderRadius: 8, padding: '8px 12px', marginBottom: 10,
+        }}>
+          <span style={{ fontSize: 13, flexShrink: 0 }}>📈</span>
+          <span style={{ fontSize: 12, color: '#0369A1', lineHeight: 1.6 }}>{trend}</span>
+        </div>
+      )}
+
+      {/* 권장 조치 */}
+      {action && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 8,
+          background: '#F0FDF4', border: '1px solid #BBF7D0',
+          borderRadius: 8, padding: '8px 12px', marginBottom: keywords.length > 0 ? 12 : 0,
+        }}>
+          <span style={{ fontSize: 13, flexShrink: 0 }}>→</span>
+          <span style={{ fontSize: 12, color: '#166534', lineHeight: 1.6, fontWeight: 600 }}>{action}</span>
+        </div>
+      )}
+
+      {/* 키워드 태그 */}
+      {keywords.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {keywords.map((kw, i) => (
+            <span key={i} style={{
+              background: '#EEF2FF', color: '#3730A3',
+              borderRadius: 20, padding: '3px 10px',
+              fontSize: 11, fontWeight: 700,
+            }}>#{kw}</span>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
 }
 
 /* ── 메인 ── */
@@ -360,12 +471,10 @@ export default function RecordDetailPage() {
         </Card>
 
         {/* AI 요약 */}
-        <Card style={{ background: C.primaryLight, border: `1px solid ${C.primaryDark}20`, padding: 20 }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: C.primaryDark, marginBottom: 12 }}>
-            ✦ AI 요약 ({patientLabel(detail.patient_name, detail.record_date)})
-          </div>
-          <div style={{ fontSize: 13, color: C.primaryDark, lineHeight: 1.8 }}>{parseAiSummary(detail.ai_summary)}</div>
-        </Card>
+        <AiSummaryCard
+          raw={detail.ai_summary}
+          patientLabel={patientLabel(detail.patient_name, detail.record_date)}
+        />
       </div>
 
       {/* 공통 질문 응답 */}
@@ -378,7 +487,6 @@ export default function RecordDetailPage() {
               <div key={i} style={{ background: C.bg, borderRadius: 10, padding: '12px 14px' }}>
                 <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>{item.question_text}</div>
                 {item.answered ? (() => {
-                  // yes_no: choice 기준 표시
                   if (item.choice === 'yes' || item.choice === 'no') {
                     return (
                       <span style={{
