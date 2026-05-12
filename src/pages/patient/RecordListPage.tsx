@@ -240,39 +240,45 @@ export default function RecordListPage() {
         background: C.primary, display: 'flex', alignItems: 'center',
         padding: '0 20px', zIndex: 100, boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
       }}>
+        {/* 좌측 로고 */}
         <div
           onClick={() => navigate('/patient')}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0 }}
         >
           <div style={{ width: 28, height: 28, borderRadius: 9, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: '#fff', fontSize: 13, fontWeight: 900 }}>C</span>
           </div>
           <span style={{ color: '#fff', fontWeight: 900, fontSize: 17, letterSpacing: '-0.04em' }}>CAPD</span>
         </div>
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>
-          <span style={{ color: '#fff', fontSize: 14, fontWeight: 900 }}>
+        {/* 중앙 이름 — flex:1로 남은 공간 차지, overflow 방지 */}
+        <div style={{ flex: 1, textAlign: 'center', overflow: 'hidden', padding: '0 8px' }}>
+          <span style={{ color: '#fff', fontSize: 14, fontWeight: 900, whiteSpace: 'nowrap' }}>
             {localStorage.getItem('user_name') ?? ''}
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginLeft: 6 }}>나의 기록</span>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginLeft: 4, whiteSpace: 'nowrap' }}>나의 기록</span>
         </div>
-        {/* 우측 버튼 그룹 */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+        {/* 우측 버튼 그룹 — 아이콘만으로 축약 */}
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           <button
             onClick={() => navigate('/patient/mypage')}
+            title="마이페이지"
             style={{
               background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600,
-              cursor: 'pointer', padding: '5px 12px', fontFamily: 'inherit',
+              borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', padding: '6px 10px', fontFamily: 'inherit',
+              whiteSpace: 'nowrap', lineHeight: 1,
             }}
-          >👤 마이페이지</button>
+          >👤</button>
           <button
             onClick={() => { localStorage.clear(); navigate('/login') }}
+            title="로그아웃"
             style={{
               background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
               borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600,
-              cursor: 'pointer', padding: '5px 12px', fontFamily: 'inherit',
+              cursor: 'pointer', padding: '5px 10px', fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
             }}
-          >↩ 로그아웃</button>
+          >로그아웃</button>
         </div>
       </header>
 

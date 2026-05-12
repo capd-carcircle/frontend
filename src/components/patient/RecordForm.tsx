@@ -187,42 +187,46 @@ export default function RecordForm({
   // ── 셀 인풋 공통 스타일 ────────────────────────────────────────
   const cellInputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '6px 2px',
+    padding: '5px 1px',
     border: `1px solid ${C.border}`,
-    borderRadius: 6,
-    fontSize: 12,
+    borderRadius: 5,
+    fontSize: 11,
     textAlign: 'center',
     fontFamily: 'inherit',
     color: C.text,
     background: isReadOnly ? C.bg : '#fff',
     outline: 'none',
     boxSizing: 'border-box',
+    minWidth: 0,
   }
 
   const thStyle: React.CSSProperties = {
-    padding: '9px 4px',
+    padding: '8px 2px',
     fontSize: 11,
     fontWeight: 700,
     color: '#fff',
     background: C.primary,
     textAlign: 'center',
     whiteSpace: 'nowrap',
+    overflow: 'hidden',
   }
 
   const tdLabelStyle: React.CSSProperties = {
-    padding: '9px 8px',
-    fontSize: 11,
+    padding: '8px 6px',
+    fontSize: 10,
     fontWeight: 600,
     color: C.textMuted,
     background: C.bg,
     borderRight: `1px solid ${C.border}`,
     whiteSpace: 'nowrap',
+    overflow: 'hidden',
   }
 
   const tdCellStyle: React.CSSProperties = {
-    padding: '5px 3px',
+    padding: '4px 2px',
     borderRight: `1px solid ${C.border}`,
     textAlign: 'center',
+    overflow: 'hidden',
   }
 
   const tdUFStyle = (val: number | undefined): React.CSSProperties => ({
@@ -249,12 +253,12 @@ export default function RecordForm({
         <div>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '18%' }} />{/* 항목 */}
-              <col style={{ width: '16.4%' }} />{/* 1회차 */}
-              <col style={{ width: '16.4%' }} />{/* 2회차 */}
-              <col style={{ width: '16.4%' }} />{/* 3회차 */}
-              <col style={{ width: '16.4%' }} />{/* 4회차 */}
-              <col style={{ width: '16.4%' }} />{/* 5회차 */}
+              <col style={{ width: '22%' }} />{/* 항목 */}
+              <col style={{ width: '15.6%' }} />{/* 1회차 */}
+              <col style={{ width: '15.6%' }} />{/* 2회차 */}
+              <col style={{ width: '15.6%' }} />{/* 3회차 */}
+              <col style={{ width: '15.6%' }} />{/* 4회차 */}
+              <col style={{ width: '15.6%' }} />{/* 5회차 */}
             </colgroup>
             <thead>
               <tr>
@@ -271,9 +275,16 @@ export default function RecordForm({
                 {exchanges.map((ex, i) => (
                   <td key={i} style={tdCellStyle}>
                     <input
-                      type="time"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="--:--"
+                      maxLength={5}
                       value={ex.exchange_time ?? ''}
-                      onChange={e => handleExchange(i, 'exchange_time', e.target.value)}
+                      onChange={e => {
+                        let v = e.target.value.replace(/[^0-9:]/g, '')
+                        if (v.length === 2 && !v.includes(':') && (ex.exchange_time ?? '').length < 2) v = v + ':'
+                        handleExchange(i, 'exchange_time', v)
+                      }}
                       readOnly={isReadOnly}
                       style={cellInputStyle}
                     />
@@ -291,7 +302,7 @@ export default function RecordForm({
                       <select
                         value={ex.infusion_concentration ?? ''}
                         onChange={e => handleExchange(i, 'infusion_concentration', e.target.value)}
-                        style={{ ...cellInputStyle, cursor: 'pointer' }}
+                        style={{ ...cellInputStyle, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}
                       >
                         <option value="">—</option>
                         {CONC_OPTIONS.map(opt => (
@@ -382,7 +393,7 @@ export default function RecordForm({
         <div style={{ padding: '14px 16px 10px', borderBottom: `1px solid ${C.border}` }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.text }}>기타 기록</h2>
         </div>
-        <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ padding: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: 14 }}>
 
           {/* 복막액 혼탁 */}
           <div>
