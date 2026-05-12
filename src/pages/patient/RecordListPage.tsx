@@ -205,6 +205,13 @@ export default function RecordListPage() {
   const [openId,     setOpenId]     = useState<number | null>(null)
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set())
   const [hasDoctor,  setHasDoctor]  = useState<boolean | null>(null)
+  const [isNarrow,   setIsNarrow]   = useState(window.innerWidth < 420)
+
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 420)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     getMe()
@@ -264,11 +271,11 @@ export default function RecordListPage() {
             title="마이페이지"
             style={{
               background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', padding: '6px 10px', fontFamily: 'inherit',
-              whiteSpace: 'nowrap', lineHeight: 1,
+              borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600,
+              cursor: 'pointer', padding: '5px 10px', fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
             }}
-          >👤</button>
+          >{isNarrow ? '👤' : '👤 마이페이지'}</button>
           <button
             onClick={() => { localStorage.clear(); navigate('/login') }}
             title="로그아웃"
@@ -278,7 +285,7 @@ export default function RecordListPage() {
               cursor: 'pointer', padding: '5px 10px', fontFamily: 'inherit',
               whiteSpace: 'nowrap',
             }}
-          >로그아웃</button>
+          >{isNarrow ? '↩' : '로그아웃'}</button>
         </div>
       </header>
 
