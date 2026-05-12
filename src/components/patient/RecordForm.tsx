@@ -441,8 +441,8 @@ export default function RecordForm({
             readOnly={isReadOnly}
           />
 
-          {/* 혈압 */}
-          <div>
+          {/* 혈압 — 수축기/이완기 두 칸이라 전체 너비 사용 */}
+          <div style={{ gridColumn: '1 / -1' }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 8 }}>
               혈압 (mmHg)
             </label>
