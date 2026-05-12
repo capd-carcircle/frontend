@@ -455,13 +455,14 @@ export default function RecordForm({
                 onChange={e => { if (!isReadOnly) setBpSystolic(e.target.value) }}
                 readOnly={isReadOnly}
                 style={{
-                  flex: 1, padding: '10px 10px', borderRadius: 9,
+                  flex: '1 1 0', minWidth: 0, padding: '10px 6px', borderRadius: 9,
                   border: `1.5px solid ${C.border}`, fontSize: 13,
                   fontFamily: 'inherit', color: C.text, outline: 'none',
                   background: isReadOnly ? C.bg : '#fff', textAlign: 'center',
+                  boxSizing: 'border-box',
                 }}
               />
-              <span style={{ color: C.textMuted, fontWeight: 700 }}>/</span>
+              <span style={{ color: C.textMuted, fontWeight: 700, flexShrink: 0 }}>/</span>
               <input
                 type="number"
                 placeholder="이완기"
@@ -470,10 +471,11 @@ export default function RecordForm({
                 onChange={e => { if (!isReadOnly) setBpDiastolic(e.target.value) }}
                 readOnly={isReadOnly}
                 style={{
-                  flex: 1, padding: '10px 10px', borderRadius: 9,
+                  flex: '1 1 0', minWidth: 0, padding: '10px 6px', borderRadius: 9,
                   border: `1.5px solid ${C.border}`, fontSize: 13,
                   fontFamily: 'inherit', color: C.text, outline: 'none',
                   background: isReadOnly ? C.bg : '#fff', textAlign: 'center',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
