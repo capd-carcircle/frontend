@@ -45,9 +45,9 @@ interface Props {
   isReadOnly?: boolean
 }
 
-// ── 스테퍼 컴포넌트 ──────────────────────────────────────────────
+// ── 스테퍼 컴포넌트 (직접 입력 + 버튼 병행) ─────────────────────
 function Stepper({
-  label, value, onChange, step, min, unit, readOnly, displayValue,
+  label, value, onChange, step, min, unit, readOnly, isDecimal, startAt,
 }: {
   label: string
   value: number | undefined
@@ -56,9 +56,46 @@ function Stepper({
   min: number
   unit: string
   readOnly?: boolean
-  displayValue?: string
+  isDecimal?: boolean
+  startAt?: number
 }) {
-  const shown = value !== undefined ? `${value}${unit}` : (displayValue ?? '—')
+  const [raw, setRaw] = useState(value !== undefined ? String(value) : '')
+
+  // 외부 값이 바뀌면 raw도 동기화
+  const displayStr = value !== undefined ? String(value) : ''
+  if (raw !== displayStr && document.activeElement?.tagName !== 'INPUT') {
+    // 포커스 없을 때만 동기화 (타이핑 중 방해 방지)
+  }
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value
+    setRaw(v)
+    if (v === '' || v === '-') { onChange(undefined); return }
+    const num = isDecimal ? parseFloat(v) : parseInt(v, 10)
+    if (!isNaN(num)) onChange(num)
+  }
+
+  const handleBlur = () => {
+    // 포커스 벗어날 때 값 정리
+    if (value !== undefined) setRaw(String(value))
+    else setRaw('')
+  }
+
+  const stepDown = () => {
+    const cur = value ?? startAt ?? 0
+    const next = Math.round((cur - step) * 100) / 100
+    const clamped = Math.max(min, next)
+    onChange(clamped === 0 && min === 0 ? undefined : clamped)
+    setRaw(clamped === 0 && min === 0 ? '' : String(clamped))
+  }
+
+  const stepUp = () => {
+    const cur = value ?? startAt ?? (min > 0 ? min - step : 0)
+    const next = Math.round((cur + step) * 100) / 100
+    onChange(next)
+    setRaw(String(next))
+  }
+
   return (
     <div>
       <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: C.textMuted, marginBottom: 10 }}>
@@ -66,44 +103,47 @@ function Stepper({
       </label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {!readOnly && (
-          <button
-            type="button"
-            onClick={() => {
-              const cur = value ?? 0
-              const next = Math.max(min, Math.round((cur - step) * 10) / 10)
-              onChange(next === 0 && min === 0 ? undefined : next)
-            }}
-            style={{
-              width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-              border: `1.5px solid ${C.border}`, background: '#fff',
-              fontSize: 22, fontWeight: 300, color: C.textMuted,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >−</button>
+          <button type="button" onClick={stepDown} style={{
+            width: 52, height: 52, borderRadius: 12, flexShrink: 0,
+            border: `1.5px solid ${C.border}`, background: '#fff',
+            fontSize: 24, fontWeight: 300, color: C.textMuted,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>−</button>
         )}
-        <div style={{
-          flex: 1, height: 48, borderRadius: 12,
-          border: `1.5px solid ${C.border}`,
-          background: readOnly ? C.bg : '#f8f5ff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 18, fontWeight: 700, color: value !== undefined ? C.text : C.textLight,
-        }}>
-          {shown}
+        <div style={{ flex: 1, position: 'relative' }}>
+          <input
+            type="text"
+            inputMode={isDecimal ? 'decimal' : 'numeric'}
+            pattern={isDecimal ? '[0-9.]*' : '[0-9]*'}
+            value={readOnly ? (value !== undefined ? String(value) : '—') : raw}
+            onChange={handleInput}
+            onBlur={handleBlur}
+            readOnly={readOnly}
+            placeholder={startAt !== undefined ? String(startAt) : '—'}
+            style={{
+              width: '100%', height: 52, borderRadius: 12, boxSizing: 'border-box',
+              border: `1.5px solid ${C.border}`,
+              background: readOnly ? C.bg : '#fff',
+              fontSize: 18, fontWeight: 700, color: value !== undefined ? C.text : C.textLight,
+              textAlign: 'center', outline: 'none', fontFamily: 'inherit',
+              paddingRight: unit ? `${unit.length * 14 + 8}px` : '12px',
+              paddingLeft: '12px',
+            }}
+          />
+          {unit && (
+            <span style={{
+              position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+              fontSize: 13, color: C.textMuted, pointerEvents: 'none',
+            }}>{unit}</span>
+          )}
         </div>
         {!readOnly && (
-          <button
-            type="button"
-            onClick={() => {
-              const cur = value ?? (min > 0 ? min : 0)
-              onChange(Math.round((cur + step) * 10) / 10)
-            }}
-            style={{
-              width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-              border: `1.5px solid ${C.primary}`, background: C.primary,
-              fontSize: 22, fontWeight: 300, color: '#fff',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >+</button>
+          <button type="button" onClick={stepUp} style={{
+            width: 52, height: 52, borderRadius: 12, flexShrink: 0,
+            border: `1.5px solid ${C.primary}`, background: C.primary,
+            fontSize: 24, fontWeight: 300, color: '#fff',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>+</button>
         )}
       </div>
     </div>
@@ -344,39 +384,38 @@ export default function RecordForm({
               교환 시간
             </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{
-                flex: 1, height: 52, borderRadius: 12,
-                border: `1.5px solid ${C.border}`,
-                background: isReadOnly ? C.bg : '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 20, fontWeight: 700,
-                color: ex.exchange_time ? C.text : C.textLight,
-              }}>
-                {ex.exchange_time || '--:--'}
-              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="예) 07:30"
+                maxLength={5}
+                value={ex.exchange_time ?? ''}
+                onChange={e => {
+                  if (isReadOnly) return
+                  let v = e.target.value.replace(/[^0-9:]/g, '')
+                  if (v.length === 2 && !v.includes(':') && (ex.exchange_time ?? '').length < 2) v += ':'
+                  updateExchange(activeSession, { exchange_time: v })
+                }}
+                readOnly={isReadOnly}
+                style={{
+                  flex: 1, height: 52, borderRadius: 12, boxSizing: 'border-box',
+                  border: `1.5px solid ${C.border}`,
+                  background: isReadOnly ? C.bg : '#fff',
+                  fontSize: 20, fontWeight: 700, color: C.text,
+                  textAlign: 'center', outline: 'none', fontFamily: 'inherit',
+                }}
+              />
               {!isReadOnly && (
                 <button
                   type="button"
                   onClick={() => updateExchange(activeSession, { exchange_time: nowTimeStr() })}
                   style={{
-                    padding: '0 18px', height: 52, borderRadius: 12,
+                    padding: '0 16px', height: 52, borderRadius: 12, flexShrink: 0,
                     background: C.primary, color: '#fff',
                     border: 'none', fontSize: 14, fontWeight: 700,
                     cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
-                >지금 시간</button>
-              )}
-              {!isReadOnly && ex.exchange_time && (
-                <button
-                  type="button"
-                  onClick={() => updateExchange(activeSession, { exchange_time: '' })}
-                  style={{
-                    padding: '0 14px', height: 52, borderRadius: 12,
-                    background: '#fff', color: C.textMuted,
-                    border: `1.5px solid ${C.border}`, fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >초기화</button>
+                >지금</button>
               )}
             </div>
           </div>
@@ -423,6 +462,7 @@ export default function RecordForm({
             min={0}
             unit="g"
             readOnly={isReadOnly}
+            startAt={2000}
           />
 
           {/* 배액량 */}
@@ -552,6 +592,7 @@ export default function RecordForm({
             min={0}
             unit="kg"
             readOnly={isReadOnly}
+            isDecimal
           />
 
           {/* 혈압 */}
