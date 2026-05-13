@@ -207,7 +207,7 @@ export default function RecordSubmitPage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--capd-bg)' }}>
       <Header />
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '72px 16px 48px' }}>
 
         {/* ── 날짜 / 상태 정보 카드 ── */}
         <div style={{

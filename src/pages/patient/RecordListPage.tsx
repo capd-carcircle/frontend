@@ -289,7 +289,7 @@ export default function RecordListPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '72px 16px 48px' }}>
         {/* 담당 의사 없음 배너 */}
         {hasDoctor === false && (
           <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
