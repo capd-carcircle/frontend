@@ -185,13 +185,15 @@ function MultiStepper({
     setRaw(next === 0 && min === 0 ? '' : String(next))
   }
 
+  // 버튼 3개 + gap 2개가 입력창 높이(108px)에 딱 맞게: (108 - 8) / 3 = 33px
   const btnStyle = (positive: boolean): React.CSSProperties => ({
-    width: 52, borderRadius: 10, flexShrink: 0,
+    width: 52, height: 33, borderRadius: 8, flexShrink: 0,
     border: `1.5px solid ${positive ? C.primary : C.border}`,
     background: positive ? C.primary : '#fff',
     fontSize: 12, fontWeight: 700,
     color: positive ? '#fff' : C.textMuted,
-    cursor: 'pointer', padding: '6px 0', textAlign: 'center',
+    cursor: 'pointer', padding: 0, textAlign: 'center',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   })
 
   return (
@@ -202,7 +204,7 @@ function MultiStepper({
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
         {/* 왼쪽 − 버튼들 */}
         {!readOnly && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[...steps].reverse().map(s => (
               <button key={s} type="button" onClick={() => adjust(-s)} style={btnStyle(false)}>
                 −{s}
@@ -211,7 +213,7 @@ function MultiStepper({
           </div>
         )}
 
-        {/* 가운데 값 입력 */}
+        {/* 가운데 값 입력 — 버튼 3개(33px) + gap 2개(4px) = 107px */}
         <div style={{ flex: 1, position: 'relative' }}>
           <input
             type="text"
@@ -223,7 +225,7 @@ function MultiStepper({
             readOnly={readOnly}
             placeholder={startAt !== undefined ? String(startAt) : '—'}
             style={{
-              width: '100%', height: '100%', minHeight: 52,
+              width: '100%', height: 107,
               borderRadius: 12, boxSizing: 'border-box',
               border: `1.5px solid ${C.border}`,
               background: readOnly ? C.bg : '#fff',
@@ -244,7 +246,7 @@ function MultiStepper({
 
         {/* 오른쪽 + 버튼들 */}
         {!readOnly && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[...steps].reverse().map(s => (
               <button key={s} type="button" onClick={() => adjust(+s)} style={btnStyle(true)}>
                 +{s}
@@ -432,6 +434,7 @@ export default function RecordForm({
       <div style={{
         background: '#fff', borderRadius: 16,
         border: `1px solid ${C.border}`,
+        overflow: 'hidden',
         boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
       }}>
         {/* 섹션 헤더 */}
@@ -493,7 +496,7 @@ export default function RecordForm({
               <input
                 type="text"
                 inputMode="numeric"
-                placeholder="예) 07:30"
+                placeholder="07:30"
                 maxLength={5}
                 value={ex.exchange_time ?? ''}
                 onChange={e => {
@@ -504,7 +507,7 @@ export default function RecordForm({
                 }}
                 readOnly={isReadOnly}
                 style={{
-                  flex: 1, height: 52, borderRadius: 12, boxSizing: 'border-box',
+                  width: 110, height: 52, borderRadius: 12, boxSizing: 'border-box',
                   border: `1.5px solid ${C.border}`,
                   background: isReadOnly ? C.bg : '#fff',
                   fontSize: 20, fontWeight: 700, color: C.text,
@@ -651,6 +654,7 @@ export default function RecordForm({
       <div style={{
         background: '#fff', borderRadius: 16,
         border: `1px solid ${C.border}`,
+        overflow: 'hidden',
         boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
       }}>
         <div style={{ padding: '16px 18px 12px', borderBottom: `1px solid ${C.border}` }}>
