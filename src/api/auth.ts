@@ -2,10 +2,18 @@ import client from './client'
 import type { TokenResponse, User, Hospital, DoctorSummary, PatientRegistrationInfo } from '../types'
 
 /**
- * 로그인 → { access_token, user_id, name, role }
+ * 로그인 → { access_token, refresh_token, user_id, name, role }
  */
 export async function login(phone_number: string, password: string): Promise<TokenResponse> {
   const { data } = await client.post<TokenResponse>('/api/v1/auth/login', { phone_number, password })
+  return data
+}
+
+/**
+ * refresh_token → 새 access_token 발급
+ */
+export async function refreshAccessToken(refresh_token: string): Promise<{ access_token: string }> {
+  const { data } = await client.post<{ access_token: string }>('/api/v1/auth/refresh', { refresh_token })
   return data
 }
 
