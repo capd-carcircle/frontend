@@ -47,13 +47,14 @@ interface Props {
 
 // ── 스테퍼 컴포넌트 (직접 입력 + 버튼 병행) ─────────────────────
 function Stepper({
-  label, value, onChange, step, min, unit, readOnly, isDecimal, startAt,
+  label, value, onChange, step, min, max, unit, readOnly, isDecimal, startAt,
 }: {
   label: string
   value: number | undefined
   onChange: (v: number | undefined) => void
   step: number
   min: number
+  max?: number
   unit: string
   readOnly?: boolean
   isDecimal?: boolean
@@ -72,7 +73,11 @@ function Stepper({
     setRaw(v)
     if (v === '' || v === '-') { onChange(undefined); return }
     const num = isDecimal ? parseFloat(v) : parseInt(v, 10)
-    if (!isNaN(num)) onChange(num)
+    if (!isNaN(num)) {
+      const clamped = max !== undefined ? Math.min(num, max) : num
+      onChange(clamped)
+      if (clamped !== num) setRaw(String(clamped))
+    }
   }
 
   const handleBlur = () => {
@@ -92,8 +97,9 @@ function Stepper({
   const stepUp = () => {
     const cur = value ?? startAt ?? (min > 0 ? min - step : 0)
     const next = Math.round((cur + step) * 100) / 100
-    onChange(next)
-    setRaw(String(next))
+    const clamped = max !== undefined ? Math.min(next, max) : next
+    onChange(clamped)
+    setRaw(String(clamped))
   }
 
   return (
@@ -460,6 +466,7 @@ export default function RecordForm({
             onChange={v => updateExchange(activeSession, { infusion_weight: v })}
             step={50}
             min={0}
+            max={5000}
             unit="g"
             readOnly={isReadOnly}
             startAt={2000}
@@ -472,6 +479,7 @@ export default function RecordForm({
             onChange={v => updateExchange(activeSession, { drainage_volume: v })}
             step={50}
             min={0}
+            max={6000}
             unit="g"
             readOnly={isReadOnly}
             startAt={2000}
@@ -591,6 +599,7 @@ export default function RecordForm({
             onChange={v => { if (!isReadOnly) setWeight(v) }}
             step={0.5}
             min={0}
+            max={300}
             unit="kg"
             readOnly={isReadOnly}
             isDecimal
@@ -646,6 +655,7 @@ export default function RecordForm({
             onChange={v => { if (!isReadOnly) setUrineCount(v) }}
             step={1}
             min={0}
+            max={99}
             unit="회"
             readOnly={isReadOnly}
           />
@@ -655,7 +665,7 @@ export default function RecordForm({
             label="공복혈당 (mg/dL)"
             placeholder="예) 105"
             value={fastingGlucose}
-            onChange={e => { if (!isReadOnly) setFasting(e.target.value.replace(/[^0-9]/g, '')) }}
+            onChange={e => { if (!isReadOnly) setFasting(e.target.value.replace(/[^0-9]/g, '').slice(0, 4)) }}
             readOnly={isReadOnly}
           />
 

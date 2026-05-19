@@ -14,6 +14,23 @@ import RecordForm from '../../components/patient/RecordForm'
 
 const todayStr = (): string => new Date().toISOString().split('T')[0]
 
+/** Pydantic v2 422 에러 또는 일반 에러 메시지를 문자열로 변환 */
+const parseApiError = (e: unknown, fallback: string): string => {
+  const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  if (!detail) return fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: { msg?: string; loc?: unknown[] }) => {
+        const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : ''
+        const msg = d.msg ?? '알 수 없는 오류'
+        return field ? `${field}: ${msg}` : msg
+      })
+      .join(' / ')
+  }
+  return fallback
+}
+
 const getKoreanDate = (): string => {
   const days = ['일', '월', '화', '수', '목', '금', '토']
   const d = new Date()
@@ -109,10 +126,7 @@ export default function RecordSubmitPage() {
       }
       saveToast.show('저장되었습니다.')
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        '저장에 실패했습니다.'
-      setError(msg)
+      setError(parseApiError(e, '저장에 실패했습니다.'))
     } finally {
       setDraftLoading(false)
     }
@@ -149,10 +163,7 @@ export default function RecordSubmitPage() {
       await finalizeRecord(recordId)
       navigate('/patient/survey/common', { state: { recordId } })
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        '제출에 실패했습니다.'
-      setError(msg)
+      setError(parseApiError(e, '제출에 실패했습니다.'))
     } finally {
       setFinalLoading(false)
     }
@@ -207,7 +218,7 @@ export default function RecordSubmitPage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--capd-bg)' }}>
       <Header />
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '72px 16px 48px' }}>
 
         {/* ── 날짜 / 상태 정보 카드 ── */}
         <div style={{

@@ -38,6 +38,7 @@
 
 body {
   margin: 0;
+  width: 100%;
   font-family: 'Noto Sans KR', 'Inter', system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
