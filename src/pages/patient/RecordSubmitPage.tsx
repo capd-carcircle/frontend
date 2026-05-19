@@ -145,9 +145,9 @@ export default function RecordSubmitPage() {
         recordId = record.id
       }
 
-      // draft → submitted (AI 질문 생성 트리거)
+      // draft → submitted
       await finalizeRecord(recordId)
-      navigate('/patient/survey', { state: { recordId } })
+      navigate('/patient/survey/common', { state: { recordId } })
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
@@ -273,7 +273,7 @@ export default function RecordSubmitPage() {
                 transition: 'opacity 0.15s', fontFamily: 'inherit',
               }}
               className="capd-btn-hover"
-              onClick={() => navigate('/patient/survey', { state: { recordId: todayRecord!.id } })}
+              onClick={() => navigate('/patient/survey/common', { state: { recordId: todayRecord!.id } })}
             >
               후속 설문 답변하기 →
             </button>
