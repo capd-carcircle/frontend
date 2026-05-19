@@ -461,6 +461,7 @@ export default function RecordForm({
 
           {/* 주입량 */}
           <Stepper
+            key={`infusion_weight_${activeSession}`}
             label="주입량 (g)"
             value={ex.infusion_weight}
             onChange={v => updateExchange(activeSession, { infusion_weight: v })}
@@ -474,6 +475,7 @@ export default function RecordForm({
 
           {/* 배액량 */}
           <Stepper
+            key={`drainage_volume_${activeSession}`}
             label="배액량 (g)"
             value={ex.drainage_volume}
             onChange={v => updateExchange(activeSession, { drainage_volume: v })}
