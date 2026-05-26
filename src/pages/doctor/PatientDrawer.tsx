@@ -66,6 +66,7 @@ function Sparkline({ data, field, color, label, unit }: {
   )
 
   const pts = filtered.map(d => d.value)
+  const avg = pts.reduce((a, b) => a + b, 0) / pts.length
   const W = 200, CHART_H = 42, DATE_H = 14, PAD = 4
   const TOTAL_H = CHART_H + DATE_H
 
@@ -97,7 +98,10 @@ function Sparkline({ data, field, color, label, unit }: {
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
         <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 600 }}>{label}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color }}>{pts[pts.length - 1].toFixed(1)} {unit}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color }}>
+          <span style={{ fontSize: 10, fontWeight: 500, color: C.textMuted, marginRight: 2 }}>평균</span>
+          {avg.toFixed(1)} {unit}
+        </span>
       </div>
       <svg viewBox={`0 0 ${W} ${TOTAL_H}`} style={{ width: '100%', height: TOTAL_H, display: 'block', overflow: 'visible' }}>
         <defs>
