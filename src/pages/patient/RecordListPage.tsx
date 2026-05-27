@@ -152,17 +152,18 @@ function SurveyModal({ recordDate, data, loading, onClose }: {
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
         background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px 16px',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 520,
-          background: '#fff', borderRadius: '20px 20px 0 0',
-          padding: '0 0 32px',
+          width: '100%', maxWidth: 480,
+          background: '#fff', borderRadius: 20,
+          padding: '0 0 24px',
           maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-          boxShadow: '0 -4px 32px rgba(0,0,0,0.18)',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.22)',
         }}
       >
         {/* 헤더 */}
@@ -570,6 +571,9 @@ export default function RecordListPage() {
           </>
         )}
       </main>
+    </div>
+  )
+}
     </div>
   )
 }
