@@ -574,6 +574,3 @@ export default function RecordListPage() {
     </div>
   )
 }
-    </div>
-  )
-}
