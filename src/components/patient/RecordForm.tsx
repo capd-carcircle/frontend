@@ -595,22 +595,7 @@ export default function RecordForm({
             >← 이전 회차</button>
             <button
               type="button"
-              onClick={() => {
-                const nextIdx = Math.min(4, activeSession + 1)
-                setExchanges(prev => {
-                  const next = [...prev]
-                  // 다음 회차가 비어있으면 주입량·농도만 이어받기 (배액량은 이어받지 않음)
-                  if (next[nextIdx].infusion_weight === undefined) {
-                    next[nextIdx] = {
-                      ...next[nextIdx],
-                      infusion_weight: prev[activeSession].infusion_weight,
-                      infusion_concentration: prev[activeSession].infusion_concentration,
-                    }
-                  }
-                  return next
-                })
-                setActiveSession(nextIdx)
-              }}
+              onClick={() => setActiveSession(s => Math.min(4, s + 1))}
               disabled={activeSession === 4}
               style={{
                 flex: 1, padding: '12px', borderRadius: 11,
