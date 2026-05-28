@@ -697,13 +697,11 @@ export default function DashboardPage() {
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: 36 }} />
-          <col style={{ width: '13%'  }} />
-          <col style={{ width: '8%'   }} />
-          <col style={{ width: '13%'  }} />
+          <col style={{ width: '18%'  }} />
           <col style={{ width: '10%'  }} />
-          <col style={{ width: '10%'  }} />
-          <col style={{ width: '8%'   }} />
-          <col />
+          <col style={{ width: '18%'  }} />
+          <col style={{ width: '13%'  }} />
+          <col style={{ width: '13%'  }} />
         </colgroup>
         <thead>
           <tr style={{ background: C.bg }}>
@@ -718,7 +716,7 @@ export default function DashboardPage() {
                 />
               )}
             </th>
-            {['환자명', '환자번호', '전화번호', '상태', '위험도', 'AI 질문', 'AI 요약'].map((h, i) => (
+            {['환자명', '환자번호', '전화번호', '상태', '위험도'].map((h, i) => (
               <th key={i} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap' }}>{h}</th>
             ))}
           </tr>
@@ -726,7 +724,7 @@ export default function DashboardPage() {
         <tbody>
           {displayPatients.length === 0 ? (
             <tr>
-              <td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
+              <td colSpan={6} style={{ padding: '40px 16px', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>{isSearchMode ? '🔍' : '📋'}</div>
                 {loading ? '불러오는 중...' : emptyMessage()}
               </td>
@@ -779,21 +777,6 @@ export default function DashboardPage() {
                   )}
                 </td>
                 <td style={{ padding: '12px 12px' }}><RiskBadge level={rec?.risk_level ?? null} /></td>
-                <td style={{ padding: '12px 12px' }}>
-                  {rec && rec.unreviewed_ai_count > 0 ? (
-                    <span onClick={e => { e.stopPropagation(); navigate('/doctor/ai-questions') }}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: C.warningLight, color: C.warning, border: `1px solid #fcd34d`, borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                      ⚡ {rec.unreviewed_ai_count}건
-                    </span>
-                  ) : <span style={{ fontSize: 12, color: C.textLight }}>—</span>}
-                </td>
-                <td style={{ padding: '12px 12px' }}>
-                  {rec?.ai_summary ? (
-                    <p style={{ margin: 0, fontSize: 11, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {extractAiSummary(rec.ai_summary) ?? '—'}
-                    </p>
-                  ) : <span style={{ fontSize: 12, color: C.textLight }}>—</span>}
-                </td>
               </tr>
             )
           })}
@@ -822,33 +805,11 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── 위젯 행: 달력 + 위험도 + 제출율 ──
-          flex-wrap 덕분에 공간이 충분하면 한 줄,
-          좁아지면 달력 혼자 첫 줄 / 나머지 둘이 두 번째 줄 자동 배치 */}
-      {!isSearchMode && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: isMobile ? 14 : 20, alignItems: 'stretch' }}>
-
-          {/* 달력 */}
-          <div style={{ flex: '1 1 220px', background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 날짜 선택</div>
-            <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
-          </div>
-
-          {/* 위험도 분포 */}
-          <div style={{ flex: '1 1 160px', background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>
-              🎯 위험도 분포
-              <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 400, marginLeft: 5 }}>AI 분석 {allRecords.filter(r => r.risk_level).length}명</span>
-            </div>
-            <RiskBar records={allRecords} />
-          </div>
-
-          {/* 기록 제출율 */}
-          <div style={{ flex: '1 1 160px', background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📊 기록 제출율</div>
-            <SubmitGauge submitted={totalSubmitted} total={totalPatients} />
-          </div>
-
+      {/* 모바일: 달력을 맨 위에 */}
+      {isMobile && !isSearchMode && (
+        <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 날짜 선택</div>
+          <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
         </div>
       )}
 
@@ -872,20 +833,42 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 검색 + 필터 + 제목 */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-          <div style={{ flex: 1, minWidth: 160 }}>{SearchBar}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap' }}>{tableTitle()}</span>
-            {loading && <span style={{ fontSize: 11, color: C.textLight }}>⏳</span>}
-          </div>
-        </div>
-        {FilterTabs}
-      </div>
+      {/* 메인 컨텐츠: 데스크톱 2컬럼(왼쪽 목록 + 오른쪽 sticky 달력) / 모바일 단일 컬럼 */}
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
 
-      {/* 환자 목록 */}
-      {PatientList}
+        {/* 왼쪽: 검색 + 필터 + 환자 목록 */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* 검색 + 필터 + 제목 */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+              <div style={{ flex: 1, minWidth: 160 }}>{SearchBar}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap' }}>{tableTitle()}</span>
+                {loading && <span style={{ fontSize: 11, color: C.textLight }}>⏳</span>}
+              </div>
+            </div>
+            {FilterTabs}
+          </div>
+
+          {/* 환자 목록 */}
+          {PatientList}
+        </div>
+
+        {/* 오른쪽: sticky 달력 (데스크톱만) */}
+        {!isMobile && !isSearchMode && (
+          <div style={{
+            flexShrink: 0, width: 240,
+            position: 'sticky', top: 20,
+            transition: 'transform 0.2s ease, opacity 0.2s ease',
+          }}>
+            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 날짜 선택</div>
+              <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
+            </div>
+          </div>
+        )}
+
+      </div>
 
       {/* 환자 드로어 */}
       {drawerPatientId !== null && (

@@ -3,10 +3,9 @@
  * 이름 + 생년월일 + 병원 + 전화번호 + 비밀번호 → 즉시 가입 완료
  * 담당 의사 연결은 로그인 후 마이페이지에서 별도 신청
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getHospitals, patientRequest } from '../../api/auth'
-import type { Hospital } from '../../types'
+import { patientRequest } from '../../api/auth'
 
 const C = {
   primary:      'var(--capd-primary)',
@@ -65,30 +64,24 @@ function btnStyle(bg: string, disabled?: boolean): React.CSSProperties {
 export default function PatientRegisterPage() {
   const navigate = useNavigate()
 
-  const [hospitals, setHospitals] = useState<Hospital[]>([])
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
   const [done,      setDone]      = useState(false)
 
   const [name,            setName]            = useState('')
   const [birthDate,       setBirthDate]       = useState('')
-  const [hospitalId,      setHospitalId]      = useState<number | ''>('')
   const [phone,           setPhone]           = useState('')
   const [password,        setPassword]        = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [gender,          setGender]          = useState<'m' | 'f' | ''>('')
-  const [address,         setAddress]         = useState('')
 
-  useEffect(() => {
-    getHospitals().then(setHospitals).catch(() => {})
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim())  { setError('이름을 입력해주세요.'); return }
     if (!birthDate)    { setError('생년월일을 입력해주세요.'); return }
     if (!gender)       { setError('성별을 선택해주세요.'); return }
     if (!phone.trim()) { setError('전화번호를 입력해주세요.'); return }
+    if (!/^[0-9]{10,11}$/.test(phone)) { setError('전화번호는 숫자만 입력해주세요. (예: 01012345678)'); return }
     if (password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); return }
     if (password !== passwordConfirm) { setError('비밀번호가 일치하지 않습니다.'); return }
 
@@ -97,22 +90,14 @@ export default function PatientRegisterPage() {
       await patientRequest({
         name,
         birth_date: birthDate,
-        hospital_id: hospitalId ? Number(hospitalId) : undefined,
         phone_number: phone,
         password,
         gender,
-        address: address.trim() || undefined,
       })
       setDone(true)
     } catch (err: any) {
       setError(err?.response?.data?.detail ?? '가입에 실패했습니다.')
     } finally { setLoading(false) }
-  }
-
-  const selectStyle: React.CSSProperties = {
-    padding: '11px 14px', borderRadius: 10,
-    border: `1.5px solid ${C.border}`, fontSize: 14,
-    fontFamily: 'inherit', color: C.text, background: '#fff', outline: 'none',
   }
 
   return (
@@ -171,16 +156,8 @@ export default function PatientRegisterPage() {
                     ))}
                   </div>
                 </div>
-                <Field label="거주지 (선택)" placeholder="예) 서울, 경기 수원" value={address} onChange={e => setAddress(e.target.value)} />
-                <Field label="통원 병원 (선택)">
-                  <select style={selectStyle} value={hospitalId}
-                    onChange={e => setHospitalId(Number(e.target.value) || '')}>
-                    <option value="">병원을 선택하세요 (선택사항)</option>
-                    {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-                  </select>
-                </Field>
-                <Field label="전화번호 (로그인 ID) *" type="tel" placeholder="010-0000-0000"
-                  value={phone} onChange={e => setPhone(e.target.value)} />
+                <Field label="전화번호 (로그인 ID) *" type="tel" placeholder="01012345678 (숫자만)"
+                  value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9]/g, ''))} />
                 <Field label="비밀번호 *" type="password" placeholder="6자 이상"
                   value={password} onChange={e => setPassword(e.target.value)} />
                 <Field label="비밀번호 확인 *" type="password" placeholder="비밀번호를 다시 입력하세요"

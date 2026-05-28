@@ -163,6 +163,17 @@ function Stepper({
   )
 }
 
+// 유효한 농도값 (CAPD 투석액: 1.5 / 2.5 / 4.25 %)
+const VALID_CONCENTRATIONS = [1.5, 2.5, 4.25]
+const MAX_CONCENTRATION = 6
+
+// 시간 문자열 유효성 검사 (HH:MM, 00:00~23:59)
+const isValidTime = (t: string): boolean => {
+  if (!/^\d{2}:\d{2}$/.test(t)) return false
+  const [h, m] = t.split(':').map(Number)
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59
+}
+
 // ── 농도 입력 필드 ───────────────────────────────────────────────
 function ConcInput({
   value, onChange, readOnly,
@@ -172,19 +183,36 @@ function ConcInput({
   readOnly?: boolean
 }) {
   const [raw, setRaw] = useState(value !== undefined ? String(value) : '')
+  const [warn, setWarn] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value.replace(/[^0-9.]/g, '')
     setRaw(v)
+    setWarn('')
     if (v === '' || v === '.') { onChange(undefined); return }
     const num = parseFloat(v)
-    if (!isNaN(num)) onChange(num)
-    // 부분 입력("1.") 중에는 value 업데이트 보류
+    if (!isNaN(num)) {
+      if (num > MAX_CONCENTRATION) {
+        setWarn(`농도는 ${MAX_CONCENTRATION}% 이하여야 합니다.`)
+        return // 값 적용 안 함
+      }
+      onChange(num)
+    }
   }
 
   const handleBlur = () => {
-    if (value !== undefined) setRaw(String(value))
-    else setRaw('')
+    if (value !== undefined) {
+      setRaw(String(value))
+      // 권장 농도가 아닌 경우 경고 (부드러운 안내)
+      if (!VALID_CONCENTRATIONS.includes(value)) {
+        setWarn(`일반적인 CAPD 농도는 1.5 / 2.5 / 4.25 % 입니다.`)
+      } else {
+        setWarn('')
+      }
+    } else {
+      setRaw('')
+      setWarn('')
+    }
   }
 
   return (
@@ -204,7 +232,7 @@ function ConcInput({
           readOnly={readOnly}
           style={{
             width: '100%', height: 60, borderRadius: 12, boxSizing: 'border-box',
-            border: `1.5px solid ${value !== undefined ? C.primary : C.border}`,
+            border: `1.5px solid ${warn ? C.danger : value !== undefined ? C.primary : C.border}`,
             background: readOnly ? C.bg : '#fff',
             fontSize: 22, fontWeight: 700,
             color: value !== undefined ? C.text : C.textLight,
@@ -217,6 +245,9 @@ function ConcInput({
           fontSize: 15, color: C.textMuted, pointerEvents: 'none',
         }}>%</span>
       </div>
+      {warn && !readOnly && (
+        <p style={{ margin: '5px 0 0', fontSize: 12, color: C.warning }}>{warn}</p>
+      )}
     </div>
   )
 }
@@ -301,6 +332,7 @@ export default function RecordForm({
   }
 
   const [exchanges, setExchanges]     = useState<ExchangeRecord[]>(initExchanges)
+  const [resetKeys, setResetKeys]     = useState<Record<number, number>>({})
   const [turbidPeritoneal, setTurbid] = useState(initialData?.turbid_peritoneal ?? false)
   const [weight, setWeight]           = useState<number | undefined>(initialData?.weight ?? undefined)
   const [bpSystolic, setBpSystolic]   = useState(initBp().sys)
@@ -329,7 +361,9 @@ export default function RecordForm({
   // 4개 필수 필드 모두 입력됐을 때만 true (실제 제출 포함 여부)
   const isComplete = (ex: ExchangeRecord) =>
     !!(ex.exchange_time &&
+       isValidTime(ex.exchange_time) &&
        ex.infusion_concentration !== undefined &&
+       ex.infusion_concentration <= MAX_CONCENTRATION &&
        ex.infusion_weight !== undefined &&
        ex.drainage_volume !== undefined)
 
@@ -485,10 +519,17 @@ export default function RecordForm({
                   if (v.length === 2 && !v.includes(':') && (ex.exchange_time ?? '').length < 2) v += ':'
                   updateExchange(activeSession, { exchange_time: v })
                 }}
+                onBlur={e => {
+                  const v = e.target.value
+                  if (v && !isValidTime(v)) {
+                    // 잘못된 시간 입력 시 초기화
+                    updateExchange(activeSession, { exchange_time: '' })
+                  }
+                }}
                 readOnly={isReadOnly}
                 style={{
                   flex: 1, minWidth: 0, height: 52, borderRadius: 12, boxSizing: 'border-box',
-                  border: `1.5px solid ${C.border}`,
+                  border: `1.5px solid ${ex.exchange_time && !isValidTime(ex.exchange_time) && ex.exchange_time.length === 5 ? C.danger : C.border}`,
                   background: isReadOnly ? C.bg : '#fff',
                   fontSize: 20, fontWeight: 700, color: C.text,
                   textAlign: 'center', outline: 'none', fontFamily: 'inherit',
@@ -507,11 +548,14 @@ export default function RecordForm({
                 >지금</button>
               )}
             </div>
+            {ex.exchange_time && ex.exchange_time.length === 5 && !isValidTime(ex.exchange_time) && !isReadOnly && (
+              <p style={{ margin: '5px 0 0', fontSize: 12, color: C.danger }}>올바른 시간을 입력해주세요. (00:00 ~ 23:59)</p>
+            )}
           </div>
 
           {/* 농도 */}
           <ConcInput
-            key={`conc_${activeSession}`}
+            key={`conc_${activeSession}_${resetKeys[activeSession] ?? 0}`}
             value={ex.infusion_concentration}
             onChange={v => updateExchange(activeSession, { infusion_concentration: v })}
             readOnly={isReadOnly}
@@ -519,7 +563,7 @@ export default function RecordForm({
 
           {/* 주입량 */}
           <Stepper
-            key={`infusion_weight_${activeSession}`}
+            key={`infusion_weight_${activeSession}_${resetKeys[activeSession] ?? 0}`}
             label="주입량 (g)"
             value={ex.infusion_weight}
             onChange={v => updateExchange(activeSession, { infusion_weight: v })}
@@ -533,7 +577,7 @@ export default function RecordForm({
 
           {/* 배액량 */}
           <Stepper
-            key={`drainage_volume_${activeSession}`}
+            key={`drainage_volume_${activeSession}_${resetKeys[activeSession] ?? 0}`}
             label="배액량 (g)"
             value={ex.drainage_volume}
             onChange={v => updateExchange(activeSession, { drainage_volume: v })}
@@ -565,7 +609,10 @@ export default function RecordForm({
           {!isReadOnly && isFilled(ex) && (
             <button
               type="button"
-              onClick={() => updateExchange(activeSession, emptyExchange(activeSession + 1))}
+              onClick={() => {
+                updateExchange(activeSession, emptyExchange(activeSession + 1))
+                setResetKeys(prev => ({ ...prev, [activeSession]: (prev[activeSession] ?? 0) + 1 }))
+              }}
               style={{
                 padding: '10px', borderRadius: 10,
                 border: `1px solid ${C.border}`, background: '#fff',

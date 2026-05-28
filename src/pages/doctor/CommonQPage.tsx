@@ -436,6 +436,13 @@ export default function CommonQPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
   const load = async () => {
     setLoading(true);
     setError(null);
@@ -521,20 +528,20 @@ export default function CommonQPage() {
   const inactiveCount = questions.length - activeCount;
 
   return (
-    <main style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+    <main style={{ flex: 1, overflowY: "auto", padding: isMobile ? 14 : 24, display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <h1 style={typography.pageTitle}>공통 질문 관리</h1>
-        <p style={typography.pageSubtitle}>모든 환자 또는 특정 환자에게만 노출할 공통 후속 질문을 관리합니다.</p>
+        <h1 style={{ ...typography.pageTitle, fontSize: isMobile ? 17 : undefined }}>공통 질문 관리</h1>
+        {!isMobile && <p style={typography.pageSubtitle}>모든 환자 또는 특정 환자에게만 노출할 공통 후속 질문을 관리합니다.</p>}
       </div>
 
-      <div style={{ display: "flex", gap: 10 }}>
+      <div style={{ display: "flex", gap: 8 }}>
         {[
           { label: "전체", value: questions.length, color: COLOR.primary },
           { label: "활성", value: activeCount,       color: COLOR.success },
           { label: "비활성", value: inactiveCount,   color: COLOR.gray },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ ...card.base, padding: "10px 20px", display: "flex", alignItems: "center", gap: 10, minWidth: 90 }}>
-            <span style={{ fontSize: 20, fontWeight: 700, color }}>{value}</span>
+          <div key={label} style={{ ...card.base, padding: isMobile ? "8px 14px" : "10px 20px", display: "flex", alignItems: "center", gap: 8, minWidth: 70 }}>
+            <span style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color }}>{value}</span>
             <span style={{ fontSize: 11, color: COLOR.textMuted }}>{label}</span>
           </div>
         ))}
@@ -565,7 +572,121 @@ export default function CommonQPage() {
           <p style={{ textAlign: "center", color: COLOR.textMuted, fontSize: 12, padding: "30px 0" }}>
             등록된 공통 질문이 없습니다. 위에서 추가해보세요.
           </p>
+        ) : isMobile ? (
+          /* ── 모바일: 카드 레이아웃 ── */
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {questions.map((q, idx) => {
+              const isEditing = editId === q.id;
+              const meta = TYPE_META[q.question_type ?? "yes_no"];
+              const opts = parseOptions(q.options);
+              const assignedNames = q.target_all_patients
+                ? null
+                : allPatients.filter((p) => q.assigned_patient_ids.includes(p.id)).map((p) => p.name);
+
+              return (
+                <React.Fragment key={q.id}>
+                  {isEditing ? (
+                    <div style={{ padding: "12px 14px", backgroundColor: "#fafafa", borderBottom: `1px solid ${COLOR.grayLight}` }}>
+                      <QuestionFormPanel
+                        initial={{
+                          text: q.question_text,
+                          type: q.question_type ?? "yes_no",
+                          options: opts,
+                          targetAll: q.target_all_patients,
+                          patientIds: q.assigned_patient_ids,
+                        }}
+                        allPatients={allPatients}
+                        onSave={handleEditSave}
+                        onCancel={() => setEditId(null)}
+                        saving={editSaving}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: "14px 14px",
+                      borderBottom: `1px solid ${COLOR.grayLight}`,
+                      backgroundColor: idx % 2 === 0 ? COLOR.white : COLOR.rowAlt,
+                    }}>
+                      {/* 상단: 번호 + 질문 텍스트 */}
+                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, color: COLOR.textMuted, minWidth: 18, paddingTop: 2 }}>{idx + 1}.</span>
+                        <span style={{
+                          fontSize: 14, color: q.is_active ? COLOR.text : COLOR.textMuted,
+                          textDecoration: q.is_active ? "none" : "line-through", lineHeight: 1.5, flex: 1,
+                        }}>
+                          {q.question_text}
+                        </span>
+                      </div>
+                      {/* 선택지 */}
+                      {opts.length > 0 && (
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8, paddingLeft: 26 }}>
+                          {opts.map((opt, i) => (
+                            <span key={i} style={{
+                              fontSize: 10, padding: "2px 8px", borderRadius: 20,
+                              backgroundColor: "#f3f4f6", color: COLOR.textMuted,
+                              border: `1px solid ${COLOR.grayLight}`,
+                            }}>{opt}</span>
+                          ))}
+                        </div>
+                      )}
+                      {/* 하단: 뱃지들 + 버튼들 */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", paddingLeft: 26 }}>
+                        {/* 유형 뱃지 */}
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                          backgroundColor: meta.bg, color: meta.color, border: `1px solid ${meta.color}22`,
+                        }}>{meta.label}</span>
+                        {/* 공개 대상 뱃지 */}
+                        {q.target_all_patients ? (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                            backgroundColor: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0",
+                          }}>전체 공개</span>
+                        ) : assignedNames && assignedNames.length > 0 ? (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                            backgroundColor: "#eff6ff", color: COLOR.primary, border: `1px solid ${COLOR.primary}33`,
+                          }} title={assignedNames.join(", ")}>
+                            {assignedNames.length}명 지정
+                          </span>
+                        ) : (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                            backgroundColor: "#fff7ed", color: "#b45309", border: "1px solid #fde68a",
+                          }}>미배정</span>
+                        )}
+                        {/* 활성 상태 뱃지 */}
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                          backgroundColor: q.is_active ? "#edfff2" : "#f3f3f3",
+                          color: q.is_active ? COLOR.success : COLOR.gray,
+                        }}>{q.is_active ? "활성" : "비활성"}</span>
+                        {/* 작업 버튼 */}
+                        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                          <button title="수정" style={iconBtn(COLOR.primary, "#eff6ff")}
+                            onClick={() => { setEditId(q.id); setShowAddForm(false); }}>
+                            <IconEdit />
+                          </button>
+                          <button
+                            title={q.is_active ? "비활성화" : "활성화"}
+                            style={iconBtn(q.is_active ? COLOR.gray : COLOR.success, q.is_active ? "#f3f3f3" : "#edfff2")}
+                            onClick={() => handleToggle(q.id)}>
+                            {q.is_active ? <IconX /> : <IconCheck />}
+                          </button>
+                          <button title="삭제" style={iconBtn(COLOR.danger, "#fff1f2")}
+                            onClick={() => handleDelete(q.id, q.question_text)}>
+                            <IconTrash />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         ) : (
+          /* ── 데스크톱: 그리드 레이아웃 ── */
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             <div style={{
               display: "grid",

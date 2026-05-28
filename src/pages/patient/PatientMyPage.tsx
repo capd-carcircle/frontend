@@ -25,6 +25,7 @@ interface PatientProfile {
   id: number; name: string; phone_number: string
   birth_date: string | null; hospital_name: string | null
   doctor_name: string | null; doctor_id: number | null
+  doctor_phone: string | null; doctor_hospital: string | null
   self_memo: string | null; role: string
   gender: string | null; address: string | null
 }
@@ -50,9 +51,9 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   )
 }
 
-function Field({ label, type = 'text', value, onChange, placeholder, autoFocus, readOnly }: {
+function Field({ label, type = 'text', value, onChange, placeholder, autoFocus }: {
   label: string; type?: string; value: string
-  onChange?: (v: string) => void; placeholder?: string; autoFocus?: boolean; readOnly?: boolean
+  onChange?: (v: string) => void; placeholder?: string; autoFocus?: boolean
 }) {
   const [focused, setFocused] = useState(false)
   return (
@@ -60,15 +61,13 @@ function Field({ label, type = 'text', value, onChange, placeholder, autoFocus, 
       <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>{label}</label>
       <input
         type={type} value={value} placeholder={placeholder} autoFocus={autoFocus}
-        readOnly={readOnly}
         onChange={e => onChange?.(e.target.value)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={{
           padding: '9px 12px', borderRadius: 9,
-          border: `1.5px solid ${focused && !readOnly ? C.primary : C.border}`,
-          fontSize: 13, fontFamily: 'inherit', color: readOnly ? C.textMuted : C.text,
-          background: readOnly ? '#f5f5f5' : '#fff', outline: 'none', transition: 'border-color 0.15s',
-          cursor: readOnly ? 'default' : 'text',
+          border: `1.5px solid ${focused ? C.primary : C.border}`,
+          fontSize: 13, fontFamily: 'inherit', color: C.text,
+          background: '#fff', outline: 'none', transition: 'border-color 0.15s',
         }}
       />
     </div>
@@ -97,12 +96,8 @@ export default function PatientMyPage() {
   const [loading,  setLoading]  = useState(true)
   const [err,      setErr]      = useState('')
 
-  // 편집 상태
+  // 편집 상태 (메모 + 비밀번호만 수정 가능)
   const [editMode, setEditMode] = useState(false)
-  const [name,     setName]     = useState('')
-  const [birth,    setBirth]    = useState('')
-  const [phone,    setPhone]    = useState('')
-  const [address,  setAddress]  = useState('')
   const [memo,     setMemo]     = useState('')
   const [showPwChange, setShowPwChange] = useState(false)
   const [curPw,    setCurPw]    = useState('')
@@ -139,8 +134,7 @@ export default function PatientMyPage() {
       .then(d => {
         if (!d) return
         setProfile(d)
-        setName(d.name); setBirth(d.birth_date ?? ''); setPhone(d.phone_number)
-        setAddress(d.address ?? ''); setMemo(d.self_memo ?? '')
+        setMemo(d.self_memo ?? '')
       })
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false))
@@ -160,8 +154,7 @@ export default function PatientMyPage() {
 
   const openEdit = () => {
     if (!profile) return
-    setName(profile.name); setBirth(profile.birth_date ?? ''); setPhone(profile.phone_number)
-    setAddress(profile.address ?? ''); setMemo(profile.self_memo ?? '')
+    setMemo(profile.self_memo ?? '')
     setCurPw(''); setShowPwChange(false); setNewPw(''); setConfirmPw('')
     setFormError(''); setEditMode(true)
   }
@@ -172,43 +165,29 @@ export default function PatientMyPage() {
     if (!profile) return
     setFormError('')
 
-    const nameChanged    = name.trim()  !== profile.name
-    const birthChanged   = birth        !== (profile.birth_date ?? '')
-    const phoneChanged   = phone        !== profile.phone_number
-    const addressChanged = address      !== (profile.address ?? '')
-    const memoChanged    = memo         !== (profile.self_memo ?? '')
-    const needsPw        = nameChanged || birthChanged || phoneChanged || showPwChange
+    const memoChanged = memo !== (profile.self_memo ?? '')
 
-    if (needsPw && !curPw) { setFormError('현재 비밀번호를 입력해주세요.'); return }
+    // 비밀번호 변경 검증
     if (showPwChange) {
+      if (!curPw) { setFormError('현재 비밀번호를 입력해주세요.'); return }
       if (!newPw) { setFormError('새 비밀번호를 입력해주세요.'); return }
       if (newPw.length < 6) { setFormError('비밀번호는 6자 이상이어야 합니다.'); return }
       if (newPw !== confirmPw) { setFormError('새 비밀번호가 일치하지 않습니다.'); return }
     }
 
     const body: Record<string, any> = {}
-    if (nameChanged)    body.name          = name.trim()
-    if (birthChanged)   body.birth_date    = birth || null
-    if (phoneChanged)   body.phone_number  = phone
-    if (addressChanged) body.address       = address || null
-    if (memoChanged)    body.self_memo     = memo
-    if (needsPw)        body.current_password = curPw
-    if (showPwChange && newPw) body.new_password = newPw
+    if (memoChanged) body.self_memo = memo
+    if (showPwChange && newPw) {
+      body.current_password = curPw
+      body.new_password = newPw
+    }
 
     if (Object.keys(body).length === 0) { setEditMode(false); return }
 
     setSaving(true)
     try {
-      const data = await apiFetch(body)
-      setProfile(p => p ? {
-        ...p,
-        name:         data.name ?? name,
-        birth_date:   birth || null,
-        phone_number: phone,
-        address:      address || null,
-        self_memo:    memo,
-      } : p)
-      if (data.name) localStorage.setItem('user_name', data.name)
+      await apiFetch(body)
+      setProfile(p => p ? { ...p, self_memo: memo } : p)
       saveToast.show('saved')
       setEditMode(false)
     } catch (e: any) { setFormError(e.message) } finally { setSaving(false) }
@@ -283,14 +262,12 @@ export default function PatientMyPage() {
       <InfoRow label="이름"     value={profile.name} />
       <InfoRow label="생년월일"  value={profile.birth_date ?? undefined} />
       <InfoRow label="성별"     value={genderLabel ?? undefined} />
-      <InfoRow label="거주지"   value={profile.address ?? undefined} />
       <InfoRow label="통원 병원" value={profile.hospital_name ?? undefined} />
-      <InfoRow label="담당 의사" value={profile.doctor_name ?? undefined} />
       <InfoRow label="전화번호"  value={profile.phone_number} />
     </Card>
   )
 
-  // ── 통합 수정 카드
+  // ── 계정 정보 수정 카드 (메모 + 비밀번호만)
   const editCard = (
     <Card>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editMode ? 16 : 0 }}>
@@ -306,35 +283,11 @@ export default function PatientMyPage() {
 
       {editMode && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <Field label="이름" value={name} onChange={setName} placeholder="이름" autoFocus />
-          <Field label="생년월일" value={birth} onChange={setBirth} placeholder="예) 1990-05-14" />
-          <Field label="전화번호" type="tel" value={phone} onChange={setPhone} placeholder="010-0000-0000" />
-          <Field label="거주지 (선택)" value={address} onChange={setAddress} placeholder="예) 서울, 경기 수원" />
-
-          {/* 성별 읽기 전용 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>성별 (변경 불가)</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['m', 'f'] as const).map(v => (
-                <div key={v} style={{
-                  flex: 1, padding: '9px 0', borderRadius: 10, textAlign: 'center',
-                  border: `1.5px solid ${profile.gender === v ? C.primary : C.border}`,
-                  background: profile.gender === v ? C.primaryLight : '#f5f5f5',
-                  color: profile.gender === v ? C.primary : C.textMuted,
-                  fontSize: 13, fontWeight: 700,
-                }}>
-                  {v === 'm' ? '남성' : '여성'}
-                  {profile.gender === v && <span style={{ marginLeft: 4, fontSize: 11 }}>✓</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* 메모 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>
               나의 특이사항
-              <span style={{ marginLeft: 6, fontWeight: 400, color: C.textMuted }}>담당 의사에게 공유됩니다</span>
+              <span style={{ marginLeft: 6, fontWeight: 400 }}>담당 의사에게 공유됩니다</span>
             </label>
             <textarea
               value={memo} onChange={e => setMemo(e.target.value)}
@@ -357,16 +310,11 @@ export default function PatientMyPage() {
             </button>
             {showPwChange && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, paddingLeft: 4 }}>
+                <Field label="현재 비밀번호" type="password" value={curPw} onChange={setCurPw} placeholder="현재 비밀번호 입력" />
                 <Field label="새 비밀번호" type="password" value={newPw} onChange={setNewPw} placeholder="6자 이상" />
                 <Field label="새 비밀번호 확인" type="password" value={confirmPw} onChange={setConfirmPw} placeholder="새 비밀번호 재입력" />
               </div>
             )}
-          </div>
-
-          {/* 현재 비밀번호 */}
-          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
-            <Field label="현재 비밀번호 *" type="password" value={curPw} onChange={setCurPw} placeholder="이름·전화번호·비밀번호 변경 시 필수" />
-            <p style={{ margin: '6px 0 0', fontSize: 11, color: C.textMuted }}>거주지·특이사항만 변경 시 불필요</p>
           </div>
 
           {formError && <p style={{ margin: 0, fontSize: 12, color: C.danger }}>{formError}</p>}
@@ -392,18 +340,33 @@ export default function PatientMyPage() {
     </Card>
   )
 
-  // ── 담당 의사 카드 (별도 유지)
+  // ── 담당 의사 카드
   const doctorCard = (
     <Card>
       <h2 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800, color: C.text }}>담당 의사</h2>
       {profile.doctor_name && !pendingReq && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#f0fdf4', borderRadius: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 18 }}>👨‍⚕️</span>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>{profile.doctor_name}</div>
-              {profile.hospital_name && <div style={{ fontSize: 11, color: C.textMuted }}>{profile.hospital_name}</div>}
+          <div style={{ padding: '12px 14px', background: '#f0fdf4', borderRadius: 10, marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: 18 }}>👨‍⚕️</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#16a34a' }}>{profile.doctor_name}</div>
+              </div>
             </div>
+            {(profile.doctor_hospital || profile.doctor_phone) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 28 }}>
+                {profile.doctor_hospital && (
+                  <div style={{ fontSize: 12, color: C.textMuted }}>
+                    🏥 {profile.doctor_hospital}
+                  </div>
+                )}
+                {profile.doctor_phone && (
+                  <div style={{ fontSize: 12, color: C.textMuted }}>
+                    📞 {profile.doctor_phone}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <button onClick={handleDischargeRequest} disabled={connectLoading} style={{
             padding: '7px 14px', borderRadius: 8, border: `1px solid #fca5a5`,

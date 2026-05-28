@@ -119,3 +119,10 @@ export async function approveRegistration(registration_id: number): Promise<void
 export async function rejectRegistration(registration_id: number, reason?: string): Promise<void> {
   await client.post('/api/v1/registration/doctor/reject', { registration_id, reason })
 }
+
+// ── 의사용: 인수인계 ────────────────────────────────────────
+
+export async function handoverPatient(patient_id: number, new_doctor_id: number): Promise<{ message: string; new_doctor_name: string }> {
+  const { data } = await client.post(`/api/v1/patients/${patient_id}/handover`, { new_doctor_id })
+  return data
+}

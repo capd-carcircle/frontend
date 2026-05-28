@@ -73,8 +73,15 @@ export default function AIReviewPage() {
   const [activeTab, setActiveTab]     = useState<TabType>("pending");
   const [busyId, setBusyId]           = useState<number | null>(null);
   const [rejectInput, setRejectInput] = useState<{ id: number; scope: "patient" | "global"; text: string } | null>(null);
+  const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 640);
   const toast    = useToast(3000);
   const errToast = useToast(3000);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   const patients = Array.from(
     new Map(questions.map((q) => [q.patient_id, { name: q.patient_name, birth: q.patient_birth_date, gender: q.patient_gender }])).entries()
@@ -166,11 +173,12 @@ export default function AIReviewPage() {
   };
 
   const tabStyle = (tab: TabType): React.CSSProperties => ({
-    padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+    padding: isMobile ? "8px 10px" : "8px 16px",
+    fontSize: isMobile ? 12 : 13, fontWeight: 600, cursor: "pointer",
     border: "none", background: "transparent", fontFamily: "inherit",
     color: activeTab === tab ? COLOR.primary : COLOR.textMuted,
     borderBottom: activeTab === tab ? `2px solid ${COLOR.primary}` : "2px solid transparent",
-    transition: "all 0.15s", display: "flex", alignItems: "center", gap: 6,
+    transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4,
   });
 
   const badge = (count: number, urgent?: boolean): React.CSSProperties => ({
@@ -192,19 +200,21 @@ export default function AIReviewPage() {
   const btnWarning : React.CSSProperties = { ...btnBase, background: "#fff", border: `1px solid #e6a817`, color: "#b07a00" };
 
   return (
-    <main style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={typography.pageTitle}>AI 맞춤 질문 검토</h1>
-        <p style={typography.pageSubtitle}>
-          AI가 환자 기록을 분석해 생성한 질문을 검토하고, 필요한 조치를 취하세요.
-        </p>
+    <main style={{ flex: 1, overflowY: "auto", padding: isMobile ? 14 : 24 }}>
+      <div style={{ marginBottom: 14 }}>
+        <h1 style={{ ...typography.pageTitle, fontSize: isMobile ? 17 : undefined }}>AI 맞춤 질문 검토</h1>
+        {!isMobile && (
+          <p style={typography.pageSubtitle}>
+            AI가 환자 기록을 분석해 생성한 질문을 검토하고, 필요한 조치를 취하세요.
+          </p>
+        )}
       </div>
 
       <div style={{ marginBottom: 10 }}>
         <select
           value={patientFilter}
           onChange={(e) => setPatientFilter(e.target.value === "" ? "" : Number(e.target.value))}
-          style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${COLOR.grayLight}`, fontSize: 13, color: COLOR.text, background: "#fff" }}
+          style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${COLOR.grayLight}`, fontSize: 13, color: COLOR.text, background: "#fff", width: isMobile ? "100%" : "auto" }}
         >
           <option value="">전체 환자</option>
           {patients.map((p) => (
@@ -294,40 +304,53 @@ export default function AIReviewPage() {
 
                 <div style={{
                   padding: "10px 16px 12px", borderTop: `1px solid ${COLOR.grayBg}`,
-                  background: "#fafbfc", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                  background: "#fafbfc", display: "flex", alignItems: "center", gap: 6,
+                  flexWrap: "wrap", rowGap: isMobile ? 8 : 6,
                 }}>
                   {isRejected ? (
                     <button onClick={() => handleRestore(q)} disabled={isBusy} style={{ ...btnOutline, opacity: isBusy ? 0.6 : 1 }}>
                       <IconRotate /> {isBusy ? "처리 중..." : "복구"}
                     </button>
-                  ) : (
+                  ) : isApproved ? (
+                    /* 확인됨 탭: 정적 뱃지만 표시 (되돌리기 버튼 없음) */
                     <>
-                      {isApproved ? (
-                        <button onClick={() => handleReview(q)} disabled={isBusy} style={{ ...btnSuccess, opacity: isBusy ? 0.6 : 1 }}>
-                          <IconCheck /> {isBusy ? "처리 중..." : "확인됨"}
-                        </button>
-                      ) : (
-                        <button onClick={() => handleReview(q)} disabled={isBusy} style={{ ...btnPrimary, opacity: isBusy ? 0.6 : 1 }}>
-                          <IconCheck /> {isBusy ? "처리 중..." : "확인"}
-                        </button>
-                      )}
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        padding: "6px 11px", borderRadius: 6,
+                        background: "#edfff2", color: COLOR.success,
+                        fontSize: 12, fontWeight: 700,
+                        border: `1px solid ${COLOR.success}33`,
+                      }}>
+                        <IconCheck /> 확인됨
+                      </span>
                       <span style={{ width: 1, height: 20, background: COLOR.grayLight, margin: "0 2px" }} />
                       <button onClick={() => handlePromote(q)} disabled={isBusy} style={{ ...btnOutline, opacity: isBusy ? 0.6 : 1 }}>
                         <IconStar /> 공통질문 등록
+                      </button>
+                    </>
+                  ) : (
+                    /* 미확인 탭: 전체 액션 버튼 */
+                    <>
+                      <button onClick={() => handleReview(q)} disabled={isBusy} style={{ ...btnPrimary, opacity: isBusy ? 0.6 : 1 }}>
+                        <IconCheck /> {isBusy ? "처리 중..." : "확인"}
+                      </button>
+                      <span style={{ width: 1, height: 20, background: COLOR.grayLight, margin: "0 2px" }} />
+                      <button onClick={() => handlePromote(q)} disabled={isBusy} style={{ ...btnOutline, opacity: isBusy ? 0.6 : 1 }}>
+                        <IconStar /> {isMobile ? "공통등록" : "공통질문 등록"}
                       </button>
                       <button
                         onClick={() => openRejectInput(q, "patient")}
                         disabled={isBusy}
                         style={{ ...btnWarning, opacity: isBusy ? 0.6 : 1, background: showRejectPanel && rejectInput?.scope === "patient" ? "#fff8e1" : "#fff" }}
                       >
-                        <IconEyeOff /> 이 환자 숨김
+                        <IconEyeOff /> {isMobile ? "숨김" : "이 환자 숨김"}
                       </button>
                       <button
                         onClick={() => openRejectInput(q, "global")}
                         disabled={isBusy}
                         style={{ ...btnDanger, opacity: isBusy ? 0.6 : 1, background: showRejectPanel && rejectInput?.scope === "global" ? "#fff0f0" : "#fff" }}
                       >
-                        <IconGlobe /> 전역 거절
+                        <IconGlobe /> {isMobile ? "전역거절" : "전역 거절"}
                       </button>
                     </>
                   )}

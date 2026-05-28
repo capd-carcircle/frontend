@@ -319,6 +319,13 @@ export default function RecordDetailPage() {
   const [error,     setError]     = useState('')
   const [approving, setApproving] = useState(false)
   const [reverting, setReverting] = useState(false)
+  const [isMobile,  setIsMobile]  = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   const errToast = useToast(3000)
 
   useEffect(() => {
@@ -391,10 +398,12 @@ export default function RecordDetailPage() {
       detail.total_ultrafiltration != null && detail.total_ultrafiltration < 0 ? 'danger' : null],
   ] as const
 
+  const pad = isMobile ? '16px' : '32px'
+
   return (
-    <main style={{ padding: 32 }}>
+    <main style={{ padding: pad, maxWidth: 1200, margin: '0 auto' }}>
       {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: 12, marginBottom: 24 }}>
         <button
           onClick={() => navigate(-1)}
           style={{ padding: '7px 14px', border: `1px solid ${C.border}`, borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, color: C.textMuted, fontFamily: 'inherit' }}
@@ -432,8 +441,8 @@ export default function RecordDetailPage() {
         </div>
       </div>
 
-      {/* 2열 레이아웃: 투석 기록 + 바이탈 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 20 }}>
+      {/* 2열 레이아웃: 투석 기록 + 바이탈 (모바일: 단일 컬럼) */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* 투석 기록 테이블 */}
         <Card>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, fontWeight: 800, fontSize: 14, color: C.text }}>
@@ -459,15 +468,15 @@ export default function RecordDetailPage() {
         </div>
       </div>
 
-      {/* EMR + AI 요약 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      {/* EMR + AI 요약 (모바일: 단일 컬럼) */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* EMR */}
         <Card style={{ padding: 20 }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 14 }}>📄 EMR 형식 요약</div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: C.text, marginBottom: 14 }}>📄 EMR 형식 요약</div>
           {(['S','O','A','P'] as const).map(k => (
-            <div key={k} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: C.primary, width: 16, flexShrink: 0 }}>{k}:</div>
-              <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{detail.emr[k]}</div>
+            <div key={k} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+              <div style={{ fontWeight: 900, fontSize: 15, color: C.primary, width: 18, flexShrink: 0 }}>{k}:</div>
+              <div style={{ fontSize: 14, color: C.text, lineHeight: 1.7, whiteSpace: 'pre-line', wordBreak: 'break-word' }}>{detail.emr[k]}</div>
             </div>
           ))}
         </Card>
@@ -482,7 +491,7 @@ export default function RecordDetailPage() {
       {/* 공통 질문 응답 */}
       <Card style={{ padding: 20, marginBottom: 20 }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: C.text, marginBottom: 14 }}>💬 공통 질문 응답</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
           {detail.survey_responses
             .filter(r => r.question_type === 'common')
             .map((item, i) => (
@@ -529,7 +538,7 @@ export default function RecordDetailPage() {
       {detail.survey_responses.filter(r => r.question_type === 'ai').length > 0 && (
         <Card style={{ padding: 20 }}>
           <div style={{ fontWeight: 800, fontSize: 14, color: C.primaryDark, marginBottom: 14 }}>✦ AI 맞춤 질문 응답</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
             {detail.survey_responses
               .filter(r => r.question_type === 'ai')
               .map((item, i) => {

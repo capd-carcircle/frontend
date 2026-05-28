@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useToast } from '../../hooks/useToast'
+import { getHospitals, getDoctors } from '../../api/auth'
+import type { Hospital, DoctorSummary } from '../../types'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -176,6 +178,13 @@ export function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
   const [showPdf,     setShowPdf]     = useState(false)
   const [pdfStart,    setPdfStart]    = useState('')
   const [pdfEnd,      setPdfEnd]      = useState('')
+  // 인수인계
+  const [showHandover,    setShowHandover]    = useState(false)
+  const [handoverHospitals, setHandoverHospitals] = useState<Hospital[]>([])
+  const [handoverDoctors,   setHandoverDoctors]   = useState<DoctorSummary[]>([])
+  const [handoverHosp,      setHandoverHosp]      = useState<number | ''>('')
+  const [handoverDoc,       setHandoverDoc]        = useState<number | ''>('')
+  const [handoverLoading,   setHandoverLoading]    = useState(false)
   const token = () => localStorage.getItem('access_token') ?? ''
 
   useEffect(() => {
@@ -209,6 +218,37 @@ export function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
       if (!res.ok) throw new Error('저장 실패')
       setOrigNote(note); saveToast.show('saved')
     } catch (e: any) { errToast.show(e.message) } finally { setSaving(false) }
+  }
+
+  const openHandover = async () => {
+    setShowHandover(true)
+    if (handoverHospitals.length === 0) {
+      const h = await getHospitals().catch(() => [])
+      setHandoverHospitals(h)
+    }
+  }
+
+  const handleHandoverHosp = async (id: number | '') => {
+    setHandoverHosp(id); setHandoverDoc('')
+    if (!id) { setHandoverDoctors([]); return }
+    const docs = await getDoctors(Number(id)).catch(() => [])
+    setHandoverDoctors(docs)
+  }
+
+  const handleHandover = async () => {
+    if (!handoverDoc) { errToast.show('인수할 의사를 선택해주세요.'); return }
+    if (!window.confirm(`${profile?.name} 환자를 선택한 의사에게 인수인계하시겠습니까?\n이 작업은 즉시 적용됩니다.`)) return
+    setHandoverLoading(true)
+    try {
+      const res = await fetch(`${API}/api/v1/patients/${patientId}/handover`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_doctor_id: handoverDoc }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail ?? '인수인계 실패')
+      onDischarge(patientId); onClose()
+    } catch (e: any) { errToast.show(e.message) } finally { setHandoverLoading(false) }
   }
 
   const handleDischarge = async () => {
@@ -371,17 +411,65 @@ td{padding:6px 8px;border:1px solid #e5e7eb;font-size:11px;vertical-align:top}tr
               </div>
 
               {profile.is_current_patient && (
-                <div style={{ background: C.dangerLight, borderRadius: 12, border: '1px solid #fca5a5', padding: '14px 18px' }}>
-                  <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 800, color: C.danger }}>담당 해제</h3>
-                  <p style={{ margin: '0 0 12px', fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>
-                    담당을 해제하면 이 환자는 기록을 제출할 수 없게 됩니다.<br />
-                    재연결은 환자의 요청 후 승인을 통해 가능합니다.
-                  </p>
-                  <button onClick={handleDischarge} disabled={discharging}
-                    style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: discharging ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', opacity: discharging ? 0.6 : 1 }}>
-                    {discharging ? '처리 중...' : '🔓 담당 해제'}
-                  </button>
-                </div>
+                <>
+                  {/* 인수인계 */}
+                  <div style={{ background: '#eff6ff', borderRadius: 12, border: '1px solid #bfdbfe', padding: '14px 18px' }}>
+                    <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 800, color: '#1d4ed8' }}>인수인계</h3>
+                    <p style={{ margin: '0 0 12px', fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>
+                      다른 의사에게 이 환자를 즉시 이관합니다.<br />
+                      이관 후 현재 담당이 자동으로 해제됩니다.
+                    </p>
+                    {!showHandover ? (
+                      <button onClick={openHandover}
+                        style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
+                        🔄 인수인계
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>병원 선택</label>
+                          <select value={handoverHosp} onChange={e => handleHandoverHosp(Number(e.target.value) || '')}
+                            style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, fontFamily: 'inherit' }}>
+                            <option value="">병원을 선택하세요</option>
+                            {handoverHospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>인수할 의사</label>
+                          <select value={handoverDoc} onChange={e => setHandoverDoc(Number(e.target.value) || '')}
+                            disabled={!handoverHosp}
+                            style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, fontFamily: 'inherit', opacity: !handoverHosp ? 0.6 : 1 }}>
+                            <option value="">{handoverHosp ? '의사를 선택하세요' : '먼저 병원을 선택하세요'}</option>
+                            {handoverDoctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => { setShowHandover(false); setHandoverHosp(''); setHandoverDoc('') }}
+                            style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#fff', fontSize: 12, fontWeight: 600, color: C.textMuted, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            취소
+                          </button>
+                          <button onClick={handleHandover} disabled={handoverLoading || !handoverDoc}
+                            style={{ flex: 2, padding: '8px', borderRadius: 8, border: 'none', background: (!handoverDoc || handoverLoading) ? '#e5e7eb' : '#2563eb', color: (!handoverDoc || handoverLoading) ? C.textMuted : '#fff', fontSize: 12, fontWeight: 700, cursor: (!handoverDoc || handoverLoading) ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                            {handoverLoading ? '처리 중...' : '이관하기'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 담당 해제 */}
+                  <div style={{ background: C.dangerLight, borderRadius: 12, border: '1px solid #fca5a5', padding: '14px 18px' }}>
+                    <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 800, color: C.danger }}>담당 해제</h3>
+                    <p style={{ margin: '0 0 12px', fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>
+                      담당을 해제하면 이 환자는 기록을 제출할 수 없게 됩니다.<br />
+                      재연결은 환자의 요청 후 승인을 통해 가능합니다.
+                    </p>
+                    <button onClick={handleDischarge} disabled={discharging}
+                      style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: discharging ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', opacity: discharging ? 0.6 : 1 }}>
+                      {discharging ? '처리 중...' : '🔓 담당 해제'}
+                    </button>
+                  </div>
+                </>
               )}
             </>
           )}
