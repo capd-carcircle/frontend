@@ -99,6 +99,7 @@ export default function PatientMyPage() {
   // 편집 상태 (메모 + 비밀번호만 수정 가능)
   const [editMode, setEditMode] = useState(false)
   const [memo,     setMemo]     = useState('')
+  const [address,  setAddress]  = useState('')
   const [showPwChange, setShowPwChange] = useState(false)
   const [curPw,    setCurPw]    = useState('')
   const [newPw,    setNewPw]    = useState('')
@@ -155,6 +156,7 @@ export default function PatientMyPage() {
   const openEdit = () => {
     if (!profile) return
     setMemo(profile.self_memo ?? '')
+    setAddress(profile.address ?? '')
     setCurPw(''); setShowPwChange(false); setNewPw(''); setConfirmPw('')
     setFormError(''); setEditMode(true)
   }
@@ -175,8 +177,10 @@ export default function PatientMyPage() {
       if (newPw !== confirmPw) { setFormError('새 비밀번호가 일치하지 않습니다.'); return }
     }
 
+    const addressChanged = address !== (profile.address ?? '')
     const body: Record<string, any> = {}
     if (memoChanged) body.self_memo = memo
+    if (addressChanged) body.address = address
     if (showPwChange && newPw) {
       body.current_password = curPw
       body.new_password = newPw
@@ -187,7 +191,7 @@ export default function PatientMyPage() {
     setSaving(true)
     try {
       await apiFetch(body)
-      setProfile(p => p ? { ...p, self_memo: memo } : p)
+      setProfile(p => p ? { ...p, self_memo: memo, address } : p)
       saveToast.show('saved')
       setEditMode(false)
     } catch (e: any) { setFormError(e.message) } finally { setSaving(false) }
@@ -264,6 +268,7 @@ export default function PatientMyPage() {
       <InfoRow label="성별"     value={genderLabel ?? undefined} />
       <InfoRow label="통원 병원" value={profile.hospital_name ?? undefined} />
       <InfoRow label="전화번호"  value={profile.phone_number} />
+      <InfoRow label="거주지"    value={profile.address ?? undefined} />
     </Card>
   )
 
@@ -283,6 +288,9 @@ export default function PatientMyPage() {
 
       {editMode && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* 거주지 */}
+          <Field label="거주지" value={address} onChange={setAddress} placeholder="예: 서울시 강남구" />
+
           {/* 메모 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>

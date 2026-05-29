@@ -458,14 +458,30 @@ export default function RecordDetailPage() {
         </Card>
 
         {/* 바이탈 사이드 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {vitals.map(([label, value, col]) => (
-            <Card key={label} style={{ padding: '12px 16px' }}>
-              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 3 }}>{label}</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: col ? (C as any)[col] : C.text }}>{value}</div>
-            </Card>
-          ))}
-        </div>
+        {isMobile ? (
+          /* 모바일: 2열 컴팩트 그리드 */
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {vitals.map(([label, value, col]) => (
+              <div key={label} style={{
+                background: '#fff', borderRadius: 10, border: `1px solid ${C.border}`,
+                padding: '8px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}>
+                <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 2, fontWeight: 600 }}>{label}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: col ? (C as any)[col] : C.text }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* 데스크톱: 기존 세로 카드 */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {vitals.map(([label, value, col]) => (
+              <Card key={label} style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: col ? (C as any)[col] : C.text }}>{value}</div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* EMR + AI 요약 (모바일: 단일 컬럼) */}

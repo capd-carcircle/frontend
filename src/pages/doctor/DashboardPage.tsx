@@ -654,7 +654,8 @@ export default function DashboardPage() {
   )
 
   /* ─────────── 통합 렌더 ─────────── */
-  const pad = isMobile ? '16px' : '28px 32px'
+  /* ─────────── return ─────────── */
+  const pad = isMobile ? '16px' : '28px 28px 28px 24px'
 
   /* 환자 목록 (테이블 or 카드) */
   const PatientList = error ? (
@@ -785,30 +786,18 @@ export default function DashboardPage() {
     </div>
   )
 
-  /* ─────────── return ─────────── */
   return (
     <main style={{ padding: pad, minHeight: '100vh' }}>
 
       {/* 헤더 */}
-      <div style={{ marginBottom: isMobile ? 14 : 20 }}>
+      <div style={{ marginBottom: isMobile ? 14 : 18 }}>
         <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>대시보드</h1>
         <div style={{ fontSize: isMobile ? 12 : 13, color: C.textMuted, marginTop: 3 }}>{formatDateKo(currentDate)}</div>
       </div>
 
-      {/* 통계 카드 */}
-      {!isSearchMode && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12, marginBottom: isMobile ? 14 : 20 }}>
-          <StatCard icon="📋" label="제출된 기록" value={totalSubmitted} sub="건" />
-          <StatCard icon="🔍" label="미검토" value={pendingCount} sub="건" color={pendingCount > 0 ? C.warning : undefined} />
-          <StatCard icon="✅" label="승인 완료" value={approvedCount} sub="건" color={C.success} />
-          <StatCard icon="👥" label="총 환자 수" value={totalPatients} sub="명" />
-        </div>
-      )}
-
-      {/* 모바일: 달력을 맨 위에 */}
-      {isMobile && !isSearchMode && (
+      {/* 모바일: 달력 맨 위 */}
+      {isMobile && (
         <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 날짜 선택</div>
           <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
         </div>
       )}
@@ -822,7 +811,7 @@ export default function DashboardPage() {
         }}>
           <div style={{ fontSize: isMobile ? 12 : 13, color: C.primaryDark }}>
             {isCombinedMode
-              ? <>📅 <b>{toDateStr(currentDate)}</b> · 🔍 <b>"{searchQuery}"</b> — {searchFiltered.length}명 일치</>
+              ? <><b>{toDateStr(currentDate)}</b> · 🔍 <b>"{searchQuery}"</b> — {searchFiltered.length}명 일치</>
               : <>🔍 <b>"{searchQuery}"</b> — 오늘 기준, {searchFiltered.length}명 일치</>
             }
           </div>
@@ -833,40 +822,32 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 메인 컨텐츠: 데스크톱 2컬럼(왼쪽 목록 + 오른쪽 sticky 달력) / 모바일 단일 컬럼 */}
+      {/* 메인: 달력(왼쪽 sticky) + 목록(오른쪽) */}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
 
-        {/* 왼쪽: 검색 + 필터 + 환자 목록 */}
+        {/* 왼쪽: 달력 (데스크톱만) */}
+        {!isMobile && (
+          <div style={{ flexShrink: 0, width: 220, position: 'sticky', top: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
+            </div>
+          </div>
+        )}
+
+        {/* 오른쪽: 검색 + 필터 + 환자 목록 */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* 검색 + 필터 + 제목 */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
               <div style={{ flex: 1, minWidth: 160 }}>{SearchBar}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, whiteSpace: 'nowrap' }}>{tableTitle()}</span>
                 {loading && <span style={{ fontSize: 11, color: C.textLight }}>⏳</span>}
               </div>
             </div>
             {FilterTabs}
           </div>
-
-          {/* 환자 목록 */}
           {PatientList}
         </div>
-
-        {/* 오른쪽: sticky 달력 (데스크톱만) */}
-        {!isMobile && !isSearchMode && (
-          <div style={{
-            flexShrink: 0, width: 240,
-            position: 'sticky', top: 20,
-            transition: 'transform 0.2s ease, opacity 0.2s ease',
-          }}>
-            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 날짜 선택</div>
-              <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
-            </div>
-          </div>
-        )}
 
       </div>
 
