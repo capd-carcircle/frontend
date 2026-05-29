@@ -7,9 +7,28 @@ import {
   reviewAIQuestion,
   promoteToCommonQuestion,
 } from "../../api/questions";
-import { COLOR, card, typography } from "../../styles/doctor";
 import { useToast } from "../../hooks/useToast";
 
+/* ── 색상 (CSS 변수 기반) ───────────────────────────────── */
+const C = {
+  primary:      'var(--capd-primary)',
+  primaryLight: 'var(--capd-primary-light)',
+  primaryDark:  'var(--capd-primary-dark)',
+  bg:           'var(--capd-bg)',
+  border:       'var(--capd-border)',
+  text:         '#1a1a2e',
+  textMuted:    '#6b7280',
+  textLight:    '#9ca3af',
+  success:      '#16a34a',
+  successLight: '#f0fdf4',
+  warning:      '#d97706',
+  warningLight: '#fffbeb',
+  danger:       '#dc2626',
+  dangerLight:  '#fef2f2',
+  white:        '#ffffff',
+}
+
+/* ── 아이콘 ─────────────────────────────────────────────── */
 const IconCheck = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
@@ -64,6 +83,13 @@ const patientLabel = (name: string, birth: string | null, gender: string | null,
 };
 const rejectLabel = (status: string) =>
   status === "rejected_for_patient" ? "환자 숨김" : "전역 거절";
+
+/* ── 버튼 스타일 ─────────────────────────────────────────── */
+const btnBase: React.CSSProperties = {
+  border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+  cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s",
+  display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 13px",
+};
 
 export default function AIReviewPage() {
   const [questions, setQuestions]     = useState<AIQuestionRow[]>([]);
@@ -172,200 +198,223 @@ export default function AIReviewPage() {
     }
   };
 
-  const tabStyle = (tab: TabType): React.CSSProperties => ({
-    padding: isMobile ? "8px 10px" : "8px 16px",
-    fontSize: isMobile ? 12 : 13, fontWeight: 600, cursor: "pointer",
-    border: "none", background: "transparent", fontFamily: "inherit",
-    color: activeTab === tab ? COLOR.primary : COLOR.textMuted,
-    borderBottom: activeTab === tab ? `2px solid ${COLOR.primary}` : "2px solid transparent",
-    transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4,
-  });
-
-  const badge = (count: number, urgent?: boolean): React.CSSProperties => ({
-    fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 99,
-    background: urgent && count > 0 ? COLOR.danger : COLOR.grayBg,
-    color: urgent && count > 0 ? "#fff" : COLOR.textMuted,
-    minWidth: 18, textAlign: "center" as const,
-  });
-
-  const btnBase: React.CSSProperties = {
-    border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
-    cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s",
-    display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 11px",
-  };
-  const btnPrimary : React.CSSProperties = { ...btnBase, background: COLOR.primary, color: "#fff" };
-  const btnSuccess : React.CSSProperties = { ...btnBase, background: COLOR.success,  color: "#fff" };
-  const btnOutline : React.CSSProperties = { ...btnBase, background: "#fff", border: `1px solid ${COLOR.grayLight}`, color: COLOR.text };
-  const btnDanger  : React.CSSProperties = { ...btnBase, background: "#fff", border: `1px solid ${COLOR.danger}`, color: COLOR.danger };
-  const btnWarning : React.CSSProperties = { ...btnBase, background: "#fff", border: `1px solid #e6a817`, color: "#b07a00" };
-
   return (
-    <main style={{ flex: 1, overflowY: "auto", padding: isMobile ? 14 : 24 }}>
-      <div style={{ marginBottom: 14 }}>
-        <h1 style={{ ...typography.pageTitle, fontSize: isMobile ? 17 : undefined }}>AI 맞춤 질문 검토</h1>
-        {!isMobile && (
-          <p style={typography.pageSubtitle}>
-            AI가 환자 기록을 분석해 생성한 질문을 검토하고, 필요한 조치를 취하세요.
-          </p>
+    <main style={{
+      flex: 1, overflowY: "auto",
+      padding: isMobile ? 14 : 24,
+      display: "flex", flexDirection: "column", gap: 16,
+      background: C.bg, minHeight: 0,
+    }}>
+      {/* ── 헤더 ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: C.text, margin: 0 }}>
+            AI 맞춤 질문 검토
+          </h1>
+          {!isMobile && (
+            <p style={{ fontSize: 13, color: C.textMuted, marginTop: 4, margin: '4px 0 0' }}>
+              AI가 환자 기록을 분석해 생성한 질문을 검토하고 필요한 조치를 취하세요.
+            </p>
+          )}
+        </div>
+        {pendingList.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: C.dangerLight, borderRadius: 10, padding: '8px 14px',
+            border: `1px solid ${C.danger}33`,
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: C.danger }}>{pendingList.length}</span>
+            <span style={{ fontSize: 12, color: C.danger, fontWeight: 600 }}>건 검토 대기</span>
+          </div>
         )}
       </div>
 
-      <div style={{ marginBottom: 10 }}>
+      {/* ── 통계 카드 (탭 겸용) ── */}
+      <div style={{ display: "flex", gap: 10 }}>
+        {[
+          { label: "검토 대기", value: pendingList.length,  color: C.danger,   bg: C.dangerLight,  tab: "pending"  as TabType },
+          { label: "확인됨",   value: approvedList.length, color: C.success,  bg: C.successLight, tab: "approved" as TabType },
+          { label: "거절됨",   value: rejectedList.length, color: C.textMuted, bg: '#f3f4f6',     tab: "rejected" as TabType },
+        ].map(({ label, value, color, bg, tab }) => (
+          <div key={label} onClick={() => setActiveTab(tab)} style={{
+            background: C.white, borderRadius: 10,
+            padding: isMobile ? "10px 12px" : "12px 18px",
+            boxShadow: activeTab === tab ? '0 2px 8px rgba(0,0,0,0.1)' : '0 1px 4px rgba(0,0,0,0.06)',
+            border: activeTab === tab ? `2px solid ${color}` : `2px solid transparent`,
+            display: "flex", alignItems: "center", gap: 10,
+            cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 9,
+              background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color }}>{value}</span>
+            </div>
+            <span style={{ fontSize: 12, color: activeTab === tab ? color : C.textMuted, fontWeight: activeTab === tab ? 700 : 500 }}>
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── 필터 ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <select
           value={patientFilter}
           onChange={(e) => setPatientFilter(e.target.value === "" ? "" : Number(e.target.value))}
-          style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${COLOR.grayLight}`, fontSize: 13, color: COLOR.text, background: "#fff", width: isMobile ? "100%" : "auto" }}
+          style={{
+            padding: "8px 12px", borderRadius: 8, border: `1.5px solid ${C.border}`,
+            fontSize: 13, color: C.text, background: C.white,
+            fontFamily: "inherit", outline: "none", cursor: "pointer",
+            width: isMobile ? "100%" : "auto",
+          }}
         >
           <option value="">전체 환자</option>
           {patients.map((p) => (
             <option key={p.id} value={p.id}>{patientLabel(p.name, p.birth, p.gender)}</option>
           ))}
         </select>
+        <span style={{ fontSize: 12, color: C.textMuted }}>{tabList.length}개</span>
       </div>
 
-      <div style={{ display: "flex", borderBottom: `1px solid ${COLOR.grayLight}`, marginBottom: 16 }}>
-        <button style={tabStyle("pending")} onClick={() => setActiveTab("pending")}>
-          미확인 <span style={badge(pendingList.length, true)}>{pendingList.length}</span>
-        </button>
-        <button style={tabStyle("approved")} onClick={() => setActiveTab("approved")}>
-          확인됨 <span style={badge(approvedList.length)}>{approvedList.length}</span>
-        </button>
-        <button style={tabStyle("rejected")} onClick={() => setActiveTab("rejected")}>
-          거절됨 <span style={badge(rejectedList.length)}>{rejectedList.length}</span>
-        </button>
-        <span style={{ marginLeft: "auto", fontSize: 12, color: COLOR.textMuted, alignSelf: "center", paddingRight: 4 }}>
-          {tabList.length}개
-        </span>
-      </div>
-
+      {/* ── 카드 목록 ── */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: "40px", color: COLOR.textMuted, fontSize: 13 }}>불러오는 중...</div>
+        <div style={{ textAlign: "center", padding: "48px", color: C.textMuted, fontSize: 13 }}>불러오는 중...</div>
       ) : error ? (
-        <div style={{ textAlign: "center", padding: "40px", color: COLOR.danger, fontSize: 13 }}>{error}</div>
+        <div style={{ textAlign: "center", padding: "48px", color: C.danger, fontSize: 13 }}>{error}</div>
       ) : tabList.length === 0 ? (
-        <div style={{ ...card.base, textAlign: "center", padding: "40px 20px", color: COLOR.textMuted, fontSize: 13 }}>
-          {activeTab === "pending" ? "검토 대기 중인 질문이 없어요." :
-           activeTab === "approved" ? "확인된 질문이 없어요." : "거절된 질문이 없어요."}
+        <div style={{
+          background: C.white, borderRadius: 12,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          textAlign: "center", padding: "48px 20px",
+        }}>
+          <p style={{ color: C.textMuted, fontSize: 13, margin: 0 }}>
+            {activeTab === "pending" ? "검토 대기 중인 질문이 없어요." :
+             activeTab === "approved" ? "확인된 질문이 없어요." : "거절된 질문이 없어요."}
+          </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {tabList.map((q) => {
             const isBusy     = busyId === q.id;
             const isRejected = q.status === "rejected_for_patient" || q.status === "rejected_global";
             const isApproved = q.status === "approved";
             const showRejectPanel = rejectInput?.id === q.id;
 
+            const borderColor = isApproved ? C.success
+              : isRejected ? C.border
+              : C.primary;
+
             return (
               <div
                 key={q.id}
                 style={{
-                  ...card.base, padding: 0, overflow: "hidden",
-                  borderLeft: isApproved ? `3px solid ${COLOR.success}`
-                    : isRejected ? `3px solid ${COLOR.grayLight}`
-                    : `3px solid ${COLOR.primary}`,
-                  opacity: isRejected ? 0.8 : 1, transition: "opacity 0.15s",
+                  background: C.white, borderRadius: 12,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                  overflow: "hidden",
+                  borderLeft: `3px solid ${borderColor}`,
+                  opacity: isRejected ? 0.8 : 1,
                 }}
               >
-                <div style={{ padding: "14px 16px 10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: COLOR.text }}>
+                {/* 카드 본문 */}
+                <div style={{ padding: "14px 16px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
                       {patientLabel(q.patient_name, q.patient_birth_date, q.patient_gender, q.record_date)}
                     </span>
-                    <span style={{ fontSize: 11, color: COLOR.textMuted }}>{q.record_date}</span>
-                    <span style={{ fontSize: 11, color: COLOR.gray, background: COLOR.grayBg, padding: "1px 7px", borderRadius: 99 }}>
+                    <span style={{ fontSize: 11, color: C.textMuted, background: C.bg, padding: "2px 8px", borderRadius: 99, border: `1px solid ${C.border}` }}>
+                      {q.record_date}
+                    </span>
+                    <span style={{ fontSize: 11, color: C.textMuted, background: C.bg, padding: "2px 8px", borderRadius: 99, border: `1px solid ${C.border}` }}>
                       {typeLabel(q.question_type)}
                     </span>
                     {isRejected && (
                       <span style={{
-                        fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 99,
-                        color: q.status === "rejected_global" ? "#7a4f00" : COLOR.danger,
-                        background: q.status === "rejected_global" ? "#fff8e1" : "#fff0f0",
+                        fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 99,
+                        color: q.status === "rejected_global" ? C.warning : C.danger,
+                        background: q.status === "rejected_global" ? C.warningLight : C.dangerLight,
+                        border: `1px solid ${q.status === "rejected_global" ? C.warning : C.danger}33`,
                       }}>
                         {rejectLabel(q.status)}
                       </span>
                     )}
+                    {isApproved && (
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 99, color: C.success, background: C.successLight, border: `1px solid ${C.success}33` }}>
+                        ✓ 확인됨
+                      </span>
+                    )}
                   </div>
 
-                  <p style={{ margin: "0 0 6px", fontSize: 14, color: COLOR.text, fontWeight: 500, lineHeight: 1.5 }}>
+                  <p style={{ margin: "0 0 8px", fontSize: 14, color: C.text, fontWeight: 500, lineHeight: 1.6 }}>
                     {q.question_text}
                   </p>
 
                   {q.reason && (
-                    <p style={{ margin: "0 0 4px", fontSize: 12, color: COLOR.textMuted, lineHeight: 1.4, borderLeft: `2px solid ${COLOR.grayLight}`, paddingLeft: 8 }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 12, color: C.textMuted, lineHeight: 1.5, borderLeft: `2px solid ${C.border}`, paddingLeft: 10 }}>
                       {q.reason}
                     </p>
                   )}
                   {q.rejected_reason && (
-                    <p style={{ margin: 0, fontSize: 12, color: "#b07a00", lineHeight: 1.4, borderLeft: "2px solid #e6a817", paddingLeft: 8, background: "#fffdf0", borderRadius: "0 4px 4px 0", padding: "3px 8px" }}>
+                    <p style={{ margin: 0, fontSize: 12, color: C.warning, lineHeight: 1.5, borderLeft: `2px solid ${C.warning}`, paddingLeft: 10, background: C.warningLight, borderRadius: "0 6px 6px 0", padding: "4px 10px" }}>
                       거절 이유: {q.rejected_reason}
                     </p>
                   )}
                 </div>
 
+                {/* 액션 바 */}
                 <div style={{
-                  padding: "10px 16px 12px", borderTop: `1px solid ${COLOR.grayBg}`,
-                  background: "#fafbfc", display: "flex", alignItems: "center", gap: 6,
-                  flexWrap: "wrap", rowGap: isMobile ? 8 : 6,
+                  padding: "10px 16px 12px", borderTop: `1px solid ${C.bg}`,
+                  background: C.bg, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
                 }}>
                   {isRejected ? (
-                    <button onClick={() => handleRestore(q)} disabled={isBusy} style={{ ...btnOutline, opacity: isBusy ? 0.6 : 1 }}>
+                    <button onClick={() => handleRestore(q)} disabled={isBusy}
+                      style={{ ...btnBase, background: C.white, border: `1.5px solid ${C.border}`, color: C.text, opacity: isBusy ? 0.6 : 1 }}>
                       <IconRotate /> {isBusy ? "처리 중..." : "복구"}
                     </button>
                   ) : isApproved ? (
-                    /* 확인됨 탭: 정적 뱃지만 표시 (되돌리기 버튼 없음) */
                     <>
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        padding: "6px 11px", borderRadius: 6,
-                        background: "#edfff2", color: COLOR.success,
-                        fontSize: 12, fontWeight: 700,
-                        border: `1px solid ${COLOR.success}33`,
-                      }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 13px", borderRadius: 8, background: C.successLight, color: C.success, fontSize: 12, fontWeight: 700, border: `1.5px solid ${C.success}33` }}>
                         <IconCheck /> 확인됨
                       </span>
-                      <span style={{ width: 1, height: 20, background: COLOR.grayLight, margin: "0 2px" }} />
-                      <button onClick={() => handlePromote(q)} disabled={isBusy} style={{ ...btnOutline, opacity: isBusy ? 0.6 : 1 }}>
+                      <div style={{ width: 1, height: 20, background: C.border }} />
+                      <button onClick={() => handlePromote(q)} disabled={isBusy}
+                        style={{ ...btnBase, background: C.white, border: `1.5px solid ${C.border}`, color: C.text, opacity: isBusy ? 0.6 : 1 }}>
                         <IconStar /> 공통질문 등록
                       </button>
                     </>
                   ) : (
-                    /* 미확인 탭: 전체 액션 버튼 */
                     <>
-                      <button onClick={() => handleReview(q)} disabled={isBusy} style={{ ...btnPrimary, opacity: isBusy ? 0.6 : 1 }}>
+                      <button onClick={() => handleReview(q)} disabled={isBusy}
+                        style={{ ...btnBase, background: C.primary, color: C.white, opacity: isBusy ? 0.6 : 1 }}>
                         <IconCheck /> {isBusy ? "처리 중..." : "확인"}
                       </button>
-                      <span style={{ width: 1, height: 20, background: COLOR.grayLight, margin: "0 2px" }} />
-                      <button onClick={() => handlePromote(q)} disabled={isBusy} style={{ ...btnOutline, opacity: isBusy ? 0.6 : 1 }}>
+                      <div style={{ width: 1, height: 20, background: C.border }} />
+                      <button onClick={() => handlePromote(q)} disabled={isBusy}
+                        style={{ ...btnBase, background: C.white, border: `1.5px solid ${C.border}`, color: C.text, opacity: isBusy ? 0.6 : 1 }}>
                         <IconStar /> {isMobile ? "공통등록" : "공통질문 등록"}
                       </button>
-                      <button
-                        onClick={() => openRejectInput(q, "patient")}
-                        disabled={isBusy}
-                        style={{ ...btnWarning, opacity: isBusy ? 0.6 : 1, background: showRejectPanel && rejectInput?.scope === "patient" ? "#fff8e1" : "#fff" }}
-                      >
+                      <button onClick={() => openRejectInput(q, "patient")} disabled={isBusy}
+                        style={{ ...btnBase, color: C.warning, opacity: isBusy ? 0.6 : 1, background: showRejectPanel && rejectInput?.scope === "patient" ? C.warningLight : C.white, border: `1.5px solid ${C.warning}44` }}>
                         <IconEyeOff /> {isMobile ? "숨김" : "이 환자 숨김"}
                       </button>
-                      <button
-                        onClick={() => openRejectInput(q, "global")}
-                        disabled={isBusy}
-                        style={{ ...btnDanger, opacity: isBusy ? 0.6 : 1, background: showRejectPanel && rejectInput?.scope === "global" ? "#fff0f0" : "#fff" }}
-                      >
+                      <button onClick={() => openRejectInput(q, "global")} disabled={isBusy}
+                        style={{ ...btnBase, color: C.danger, opacity: isBusy ? 0.6 : 1, background: showRejectPanel && rejectInput?.scope === "global" ? C.dangerLight : C.white, border: `1.5px solid ${C.danger}44` }}>
                         <IconGlobe /> {isMobile ? "전역거절" : "전역 거절"}
                       </button>
                     </>
                   )}
                 </div>
 
+                {/* 거절 입력 패널 */}
                 {showRejectPanel && rejectInput && (
                   <div style={{
-                    padding: "10px 16px 14px",
-                    borderTop: `1px solid ${rejectInput.scope === "global" ? "#ffd6d6" : "#ffe8b0"}`,
-                    background: rejectInput.scope === "global" ? "#fff8f8" : "#fffdf0",
+                    padding: "12px 16px 14px",
+                    borderTop: `1px solid ${rejectInput.scope === "global" ? C.danger + "44" : C.warning + "44"}`,
+                    background: rejectInput.scope === "global" ? C.dangerLight : C.warningLight,
                   }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 600,
-                      color: rejectInput.scope === "global" ? COLOR.danger : "#b07a00" }}>
+                    <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: rejectInput.scope === "global" ? C.danger : C.warning }}>
                       {rejectInput.scope === "global" ? "전역 거절 이유" : "이 환자 숨김 이유"}
-                      <span style={{ fontWeight: 400, color: COLOR.textMuted }}> (선택)</span>
+                      <span style={{ fontWeight: 400, color: C.textMuted }}> (선택)</span>
                     </p>
                     <textarea
                       value={rejectInput.text}
@@ -374,20 +423,19 @@ export default function AIReviewPage() {
                       rows={2}
                       style={{
                         width: "100%", boxSizing: "border-box",
-                        padding: "7px 10px", borderRadius: 6, fontSize: 13,
-                        border: `1px solid ${COLOR.grayLight}`, resize: "vertical",
-                        fontFamily: "inherit", color: COLOR.text, outline: "none", lineHeight: 1.5,
+                        padding: "8px 12px", borderRadius: 8, fontSize: 13,
+                        border: `1.5px solid ${C.border}`, resize: "vertical",
+                        fontFamily: "inherit", color: C.text, outline: "none", lineHeight: 1.5,
+                        background: C.white,
                       }}
                     />
-                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                      <button
-                        onClick={() => handleReject(q)}
-                        disabled={isBusy}
-                        style={{ ...btnBase, background: rejectInput.scope === "global" ? COLOR.danger : "#e6a817", color: "#fff", opacity: isBusy ? 0.6 : 1 }}
-                      >
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button onClick={() => handleReject(q)} disabled={isBusy}
+                        style={{ ...btnBase, background: rejectInput.scope === "global" ? C.danger : C.warning, color: C.white, opacity: isBusy ? 0.6 : 1 }}>
                         {isBusy ? "처리 중..." : "거절 확정"}
                       </button>
-                      <button onClick={() => setRejectInput(null)} disabled={isBusy} style={{ ...btnOutline }}>
+                      <button onClick={() => setRejectInput(null)} disabled={isBusy}
+                        style={{ ...btnBase, background: C.white, border: `1.5px solid ${C.border}`, color: C.text }}>
                         취소
                       </button>
                     </div>
@@ -399,11 +447,12 @@ export default function AIReviewPage() {
         </div>
       )}
 
+      {/* ── 토스트 ── */}
       {toast.message && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-          background: "#1a1a2e", color: "#fff", padding: "10px 20px", borderRadius: 8,
-          fontSize: 13, fontWeight: 500, zIndex: 9999, boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+          background: "#1a1a2e", color: C.white, padding: "10px 20px", borderRadius: 10,
+          fontSize: 13, fontWeight: 500, zIndex: 9999, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
           whiteSpace: "nowrap",
         }}>
           {toast.message}
@@ -412,8 +461,8 @@ export default function AIReviewPage() {
       {errToast.message && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-          background: COLOR.danger, color: "#fff", padding: "10px 20px", borderRadius: 8,
-          fontSize: 13, fontWeight: 500, zIndex: 9999, boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+          background: C.danger, color: C.white, padding: "10px 20px", borderRadius: 10,
+          fontSize: 13, fontWeight: 500, zIndex: 9999, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
         }}>
           {errToast.message}
         </div>

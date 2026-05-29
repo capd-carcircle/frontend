@@ -165,7 +165,7 @@ function Stepper({
 
 // 유효한 농도값 (CAPD 투석액: 1.5 / 2.5 / 4.25 %)
 const VALID_CONCENTRATIONS = [1.5, 2.5, 4.25]
-const MAX_CONCENTRATION = 6
+const MAX_CONCENTRATION = 10
 
 // 시간 문자열 유효성 검사 (HH:MM, 00:00~23:59)
 const isValidTime = (t: string): boolean => {
