@@ -842,8 +842,8 @@ export default function DashboardPage() {
 
         {/* 오른쪽: 달력 sticky (데스크톱만) */}
         {!isMobile && (
-          <div style={{ flexShrink: 0, width: 220, position: 'sticky', top: 20 }}>
-            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '14px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ flexShrink: 0, width: 300, position: 'sticky', top: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${C.border}`, padding: '18px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <MiniCalendar selectedDate={currentDate} onSelect={handleSelectDate} />
             </div>
           </div>
