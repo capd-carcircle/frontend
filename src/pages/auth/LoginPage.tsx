@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import logoFull from '../../assets/logo_full.png'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
 
@@ -41,15 +42,8 @@ export default function LoginPage() {
       }}>
         {/* 로고 */}
         <div style={{ marginBottom: 36 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 14,
-              background: C.primary,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{ color: '#fff', fontSize: 22, fontWeight: 900 }}>C</span>
-            </div>
-            <span style={{ fontSize: 24, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>CAPD</span>
+          <div style={{ marginBottom: 8 }}>
+            <img src={logoFull} alt="CAPD" style={{ height: 44, objectFit: 'contain' }} />
           </div>
           <p style={{ margin: 0, fontSize: 14, color: C.textMuted, lineHeight: 1.6 }}>
             복막투석 환자 &amp; 의사용 플랫폼
