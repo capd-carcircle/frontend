@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import logoFull from '../../assets/logo_full.png'
 import { useNavigate } from 'react-router-dom'
 import { getMyRecords, DailyRecordResponse } from '../../api/records'
 import { getMe } from '../../api/auth'
@@ -444,10 +445,7 @@ export default function RecordListPage() {
           onClick={() => navigate('/patient')}
           style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0 }}
         >
-          <div style={{ width: 28, height: 28, borderRadius: 9, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: '#fff', fontSize: 13, fontWeight: 900 }}>C</span>
-          </div>
-          <span style={{ color: '#fff', fontWeight: 900, fontSize: 17, letterSpacing: '-0.04em' }}>CAPD</span>
+          <img src={logoFull} alt="CAPD" style={{ height: 28, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
         </div>
         {/* 중앙 이름 — flex:1로 남은 공간 차지, overflow 방지 */}
         <div style={{ flex: 1, textAlign: 'center', overflow: 'hidden', padding: '0 8px' }}>
