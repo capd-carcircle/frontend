@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useToast } from '../../hooks/useToast'
+import { formatPhone } from '../../utils/helpers'
 import {
   getHospitals, getDoctors,
   patientConnectRequest, getMyPendingRequest, cancelMyRequest, patientDischargeRequest,
@@ -256,9 +257,9 @@ export default function PatientMyPage() {
         <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>{profile.name}</div>
         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 3 }}>
           CAPD 환자
-          {(age !== null || genderLabel) && (
+          {age !== null && (
             <span style={{ marginLeft: 6, color: C.primary, fontWeight: 700 }}>
-              {[age, genderLabel ? (profile.gender === 'm' ? '남' : '여') : null].filter(v => v !== null).join('/')}
+              만{age}세
             </span>
           )}
         </div>
@@ -267,7 +268,7 @@ export default function PatientMyPage() {
       <InfoRow label="생년월일"  value={profile.birth_date ?? undefined} />
       <InfoRow label="성별"     value={genderLabel ?? undefined} />
       <InfoRow label="통원 병원" value={profile.hospital_name ?? undefined} />
-      <InfoRow label="전화번호"  value={profile.phone_number} />
+      <InfoRow label="전화번호"  value={formatPhone(profile.phone_number)} />
       <InfoRow label="거주지"    value={profile.address ?? undefined} />
     </Card>
   )
@@ -370,7 +371,7 @@ export default function PatientMyPage() {
                 )}
                 {profile.doctor_phone && (
                   <div style={{ fontSize: 12, color: C.textMuted }}>
-                    📞 {profile.doctor_phone}
+                    📞 {formatPhone(profile.doctor_phone)}
                   </div>
                 )}
               </div>

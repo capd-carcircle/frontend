@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { formatPhone } from '../../utils/helpers';
 import {
   CommonQuestion,
   QuestionType,
@@ -280,7 +281,7 @@ function PatientPicker({ allPatients, selectedIds, onChange }: {
                       {patientLabel(p)}
                     </span>
                     <span style={{ fontSize: 11, color: C.textMuted, marginLeft: "auto" }}>
-                      {p.phone_number}
+                      {formatPhone(p.phone_number)}
                     </span>
                   </label>
                 );

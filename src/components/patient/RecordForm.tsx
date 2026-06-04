@@ -132,7 +132,7 @@ function Stepper({
             onChange={handleInput}
             onBlur={handleBlur}
             readOnly={readOnly}
-            placeholder={startAt !== undefined ? String(startAt) : '—'}
+            placeholder={startAt !== undefined ? String(startAt) : ''}
             style={{
               width: '100%', height: 52, borderRadius: 12, boxSizing: 'border-box',
               border: `1.5px solid ${C.border}`,
@@ -735,7 +735,7 @@ export default function RecordForm({
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                placeholder="수축기"
+                placeholder=""
                 value={bpSystolic}
                 onChange={e => { if (!isReadOnly) setBpSystolic(e.target.value.replace(/[^0-9]/g, '')) }}
                 readOnly={isReadOnly}
@@ -752,7 +752,7 @@ export default function RecordForm({
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                placeholder="이완기"
+                placeholder=""
                 value={bpDiastolic}
                 onChange={e => { if (!isReadOnly) setBpDiastolic(e.target.value.replace(/[^0-9]/g, '')) }}
                 readOnly={isReadOnly}
@@ -782,7 +782,7 @@ export default function RecordForm({
           {/* 공복혈당 */}
           <BigField
             label="공복혈당 (mg/dL)"
-            placeholder="예) 105"
+            placeholder=""
             value={fastingGlucose}
             onChange={e => { if (!isReadOnly) setFasting(e.target.value.replace(/[^0-9]/g, '').slice(0, 4)) }}
             readOnly={isReadOnly}

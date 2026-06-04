@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useToast } from '../../hooks/useToast'
+import { formatPhone } from '../../utils/helpers'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 const MOBILE_BP = 768
@@ -180,7 +181,7 @@ export default function DoctorMyPage() {
       <InfoRow label="생년월일"  value={profile.birth_date ?? undefined} />
       <InfoRow label="자격번호"  value={profile.license_number ?? undefined} />
       <InfoRow label="소속 병원" value={profile.hospital_name ?? undefined} />
-      <InfoRow label="전화번호"  value={profile.phone_number} />
+      <InfoRow label="전화번호"  value={formatPhone(profile.phone_number)} />
     </Card>
   )
 

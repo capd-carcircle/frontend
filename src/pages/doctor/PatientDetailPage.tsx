@@ -11,6 +11,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useToast } from '../../hooks/useToast'
+import { formatPhone } from '../../utils/helpers'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
@@ -178,7 +179,7 @@ export default function PatientDetailPage() {
         <InfoRow label="생년월일"  value={profile.birth_date ? formatDate(profile.birth_date + 'T00:00:00') : null} />
         <InfoRow label="성별"     value={profile.gender === 'm' ? '남성' : profile.gender === 'f' ? '여성' : undefined} />
         <InfoRow label="거주지"    value={profile.address ?? undefined} />
-        <InfoRow label="전화번호"  value={profile.phone_number} />
+        <InfoRow label="전화번호"  value={formatPhone(profile.phone_number)} />
         <InfoRow label="소속 병원" value={profile.hospital_name} />
         <InfoRow label="담당 의사" value={profile.doctor_name} />
         <InfoRow label="가입일"    value={profile.joined_at ? formatDate(profile.joined_at) : null} />

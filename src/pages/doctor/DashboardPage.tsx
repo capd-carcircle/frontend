@@ -142,9 +142,10 @@ const RISK = {
 /* ═══════════════ 뱃지 컴포넌트 ═══════════════ */
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string }> = {
+    draft:     { label: '기록 중',   bg: '#f3f4f6',      color: C.textMuted },
     submitted: { label: '미검토',   bg: C.dangerLight,  color: C.danger  },
     reviewed:  { label: '승인 완료', bg: C.successLight, color: C.success },
-    rejected:  { label: '반려',     bg: '#f3f4f6',      color: C.textMuted },
+    rejected:  { label: '반려',     bg: '#fef3f2',      color: '#b91c1c' },
   }
   const cfg = map[status] ?? { label: status, bg: '#f3f4f6', color: C.textMuted }
   return (
