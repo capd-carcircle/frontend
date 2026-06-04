@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import logoFull from '../../assets/logo_full.png';
 import { useLocation, useNavigate } from "react-router";
 
 const C = {
@@ -156,27 +157,15 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
                 onClick={() => navigate('/doctor')}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
               >
-                <div style={{
-                  width: 30, height: 30, borderRadius: 9,
-                  background: C.primary,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <span style={{ color: '#fff', fontSize: 13, fontWeight: 900, letterSpacing: -1 }}>C</span>
-                </div>
-                <span style={{ fontWeight: 800, fontSize: 15, color: C.text, whiteSpace: 'nowrap' }}>CAPD</span>
+                <img src={logoFull} alt="CAPD" style={{ height: 28, objectFit: 'contain' }} />
               </div>
             )}
             {!open && (
               <div
                 onClick={() => navigate('/doctor')}
-                style={{
-                  width: 30, height: 30, borderRadius: 9,
-                  background: C.primary,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                }}>
-                <span style={{ color: '#fff', fontSize: 13, fontWeight: 900, letterSpacing: -1 }}>C</span>
+                style={{ cursor: 'pointer' }}
+              >
+                <img src={logoFull} alt="CAPD" style={{ height: 28, objectFit: 'contain' }} />
               </div>
             )}
             <button
@@ -348,14 +337,7 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
           onClick={() => { navigate('/doctor'); setOpen(false) }}
           style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
         >
-          <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: C.primary,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ color: '#fff', fontSize: 12, fontWeight: 900 }}>C</span>
-          </div>
-          <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>CAPD</span>
+          <img src={logoFull} alt="CAPD" style={{ height: 26, objectFit: 'contain' }} />
         </div>
 
         {/* 현재 페이지 이름 */}
