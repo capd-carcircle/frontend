@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
+import { calcAge, patientLabel } from '../../utils/helpers';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -85,22 +86,6 @@ function monthLabel(key: string) {
 }
 
 /* ── 나이/성별 포맷 ───────────────────────────────────── */
-function calcAge(birth_date: string | null): number | null {
-  if (!birth_date) return null
-  const today = new Date(); const birth = new Date(birth_date + 'T00:00:00')
-  let age = today.getFullYear() - birth.getFullYear()
-  const m = today.getMonth() - birth.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-  return age
-}
-function patientLabel(name: string, birth_date: string | null, gender: string | null): string {
-  const age = calcAge(birth_date)
-  const g = gender === 'm' ? '남' : gender === 'f' ? '여' : null
-  if (age !== null && g) return `${name}(${age}/${g})`
-  if (age !== null) return `${name}(${age})`
-  if (g) return `${name}(${g})`
-  return name
-}
 
 /* ── 메인 ─────────────────────────────────────────────── */
 export default function PatientRecordsPage() {

@@ -462,7 +462,7 @@ export default function RecordForm({
             const complete = isComplete(exchanges[i])
             const partial  = filled && !complete
             const active   = activeSession === i
-            const dotColor = active ? C.primary : complete ? '#22c55e' : '#f59e0b'
+            const dotColor = active ? C.primary : complete ? 'var(--success)' : 'var(--warning)'
             return (
               <button
                 key={n}
@@ -485,7 +485,7 @@ export default function RecordForm({
                     position: 'absolute', top: 8, right: '50%', transform: 'translateX(8px)',
                     width: 7, height: 7, borderRadius: '50%',
                     background: dotColor,
-                    boxShadow: partial && !active ? '0 0 0 1.5px #fbbf24' : 'none',
+                    boxShadow: partial && !active ? '0 0 0 1.5px var(--warning-border)' : 'none',
                   }} />
                 )}
               </button>
@@ -609,7 +609,7 @@ export default function RecordForm({
             <div style={{
               marginTop: 10, height: 52, borderRadius: 12,
               background: uf === undefined ? C.bg : uf >= 0 ? C.successLight : C.dangerLight,
-              border: `1.5px solid ${uf === undefined ? C.border : uf >= 0 ? '#bbf7d0' : '#fecaca'}`,
+              border: `1.5px solid ${uf === undefined ? C.border : uf >= 0 ? 'var(--success-border)' : 'var(--danger-border)'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 20, fontWeight: 700,
               color: uf === undefined ? C.textLight : uf >= 0 ? C.success : C.danger,
@@ -687,8 +687,8 @@ export default function RecordForm({
             </label>
             <div style={{ display: 'flex', gap: 12 }}>
               {[
-                { label: '정상', value: false, color: C.success,    bg: C.successLight, border: '#bbf7d0' },
-                { label: '혼탁', value: true,  color: C.danger,     bg: C.dangerLight,  border: '#fecaca' },
+                { label: '정상', value: false, color: C.success,    bg: C.successLight, border: 'var(--success-border)' },
+                { label: '혼탁', value: true,  color: C.danger,     bg: C.dangerLight,  border: 'var(--danger-border)' },
               ].map(opt => {
                 const active = turbidPeritoneal === opt.value
                 return (
@@ -832,14 +832,14 @@ export default function RecordForm({
       {!isReadOnly && softWarnings.length > 0 && (
         <div style={{
           padding: '14px 18px', backgroundColor: C.warningLight,
-          border: '1px solid #fcd34d', borderRadius: 14,
+          border: '1px solid var(--warning-border)', borderRadius: 14,
           display: 'flex', flexDirection: 'column', gap: 8,
         }}>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#92400e', margin: 0 }}>⚠ 입력값 확인</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--warning-text)', margin: 0 }}>⚠ 입력값 확인</p>
           {softWarnings.map((w, i) => (
-            <p key={i} style={{ fontSize: 14, color: '#b45309', margin: 0 }}>• {w}</p>
+            <p key={i} style={{ fontSize: 14, color: 'var(--warning-text-sub)', margin: 0 }}>• {w}</p>
           ))}
-          <p style={{ fontSize: 13, color: '#92400e', margin: 0 }}>
+          <p style={{ fontSize: 13, color: 'var(--warning-text)', margin: 0 }}>
             실제 측정값이 맞다면 그대로 제출하셔도 됩니다.
           </p>
         </div>
@@ -851,8 +851,8 @@ export default function RecordForm({
           {submitWarning && (
             <div style={{
               marginBottom: 16, padding: '16px 18px',
-              backgroundColor: C.warningLight, border: '1px solid #fcd34d',
-              borderRadius: 14, fontSize: 14, color: '#92400e',
+              backgroundColor: C.warningLight, border: '1px solid var(--warning-border)',
+              borderRadius: 14, fontSize: 14, color: 'var(--warning-text)',
             }}>
               <p style={{ fontWeight: 700, marginBottom: 8, fontSize: 15 }}>
                 ⚠ 완성된 교환 기록이 {completeCount}회차뿐이에요

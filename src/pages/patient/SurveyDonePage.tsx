@@ -10,8 +10,8 @@ const C = {
   textMuted:    'var(--text-muted)',
   success:      'var(--success)',
   successLight: 'var(--success-light)',
-  successBorder:'#bbf7d0',
-  gray:         '#374151',
+  successBorder:'var(--success-border)',
+  gray:         'var(--text-dark)',
 }
 
 export default function SurveyDonePage() {

@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { PatientDrawer } from './PatientDrawer';
-import { formatPhone } from '../../utils/helpers';
+import { formatPhone, calcAge, patientLabel } from '../../utils/helpers';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -35,22 +35,6 @@ interface PatientOverview {
 }
 
 /* ── 환자 이름 포맷 (홍길동(36, 남)) ── */
-function calcAge(birth_date: string | null): number | null {
-  if (!birth_date) return null
-  const today = new Date(); const birth = new Date(birth_date + 'T00:00:00')
-  let age = today.getFullYear() - birth.getFullYear()
-  const m = today.getMonth() - birth.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-  return age
-}
-function patientLabel(name: string, birth_date: string | null, gender: string | null): string {
-  const age = calcAge(birth_date)
-  const g = gender === 'm' ? '남' : gender === 'f' ? '여' : null
-  if (age !== null && g) return `${name}(만${age}세/${g})`
-  if (age !== null) return `${name}(만${age}세)`
-  if (g) return `${name}(${g})`
-  return name
-}
 
 
 type RiskFilter = 'all' | 'urgent' | 'caution' | 'normal' | 'no_record'

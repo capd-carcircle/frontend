@@ -12,10 +12,10 @@ const C = {
   textMuted:    'var(--text-muted)',
   success:      'var(--success)',
   successLight: 'var(--success-light)',
-  successBorder:'#bbf7d0',
+  successBorder:'var(--success-border)',
   danger:       'var(--danger)',
   dangerLight:  'var(--danger-light)',
-  dangerBorder: '#fecaca',
+  dangerBorder: 'var(--danger-border)',
 }
 import {
   submitRecord,
@@ -60,14 +60,14 @@ const STATUS_LABEL: Record<string, string> = {
   rejected:  '반려',
 }
 const STATUS_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
-  draft:     { bg: '#f0ebff', text: '#7c3aed', dot: '#9b72e8' },
-  submitted: { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' },
-  reviewed:  { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e' },
-  rejected:  { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
+  draft:     { bg: 'var(--capd-primary-light)', text: 'var(--ai-accent)',    dot: 'var(--capd-primary)' },
+  submitted: { bg: 'var(--primary-light)',       text: 'var(--primary)',      dot: 'var(--primary)' },
+  reviewed:  { bg: 'var(--success-light)',       text: 'var(--success)',      dot: 'var(--success)' },
+  rejected:  { bg: 'var(--danger-light)',        text: 'var(--danger)',       dot: 'var(--danger)' },
 }
 
 function Badge({ status }: { status: string }) {
-  const c = STATUS_COLOR[status] ?? { bg: '#f3f4f6', text: '#6b7280', dot: '#9ca3af' }
+  const c = STATUS_COLOR[status] ?? { bg: 'var(--bg-subtle)', text: 'var(--text-sub)', dot: 'var(--text-muted)' }
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,

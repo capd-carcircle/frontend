@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { PatientDrawer } from './PatientDrawer';
-import { formatPhone } from '../../utils/helpers';
+import { formatPhone, calcAge, patientLabel } from '../../utils/helpers';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -69,23 +69,6 @@ function extractAiSummary(raw: string | null): string | null {
 }
 
 /* ═══════════════ 환자 이름 포맷 (홍길동(36, 남)) ═══════════════ */
-function calcAge(birth_date: string | null, refDate?: string | null): number | null {
-  if (!birth_date) return null
-  const ref   = refDate ? new Date(refDate + 'T00:00:00') : new Date()
-  const birth = new Date(birth_date + 'T00:00:00')
-  let age = ref.getFullYear() - birth.getFullYear()
-  const m = ref.getMonth() - birth.getMonth()
-  if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) age--
-  return age
-}
-function patientLabel(name: string, birth_date: string | null, gender: string | null, refDate?: string | null): string {
-  const age = calcAge(birth_date, refDate)
-  const g = gender === 'm' ? '남' : gender === 'f' ? '여' : null
-  if (age !== null && g) return `${name}(만${age}세/${g})`
-  if (age !== null) return `${name}(만${age}세)`
-  if (g) return `${name}(${g})`
-  return name
-}
 interface DashboardStats {
   total_submitted: number
   pending_count:   number

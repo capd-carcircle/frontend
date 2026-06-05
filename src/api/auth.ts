@@ -18,6 +18,13 @@ export async function refreshAccessToken(refresh_token: string): Promise<{ acces
 }
 
 /**
+ * 서버 측 refresh token 무효화 (로그아웃)
+ */
+export async function logoutApi(): Promise<void> {
+  await client.post('/api/v1/auth/logout')
+}
+
+/**
  * 현재 로그인 유저 정보 조회
  */
 export async function getMe(): Promise<User> {

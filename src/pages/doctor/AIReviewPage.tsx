@@ -8,6 +8,7 @@ import {
   promoteToCommonQuestion,
 } from "../../api/questions";
 import { useToast } from "../../hooks/useToast";
+import { calcAge, patientLabel } from "../../utils/helpers";
 
 /* ── 색상 (CSS 변수 기반) ───────────────────────────────── */
 const C = {
@@ -16,15 +17,15 @@ const C = {
   primaryDark:  'var(--capd-primary-dark)',
   bg:           'var(--capd-bg)',
   border:       'var(--capd-border)',
-  text:         '#1a1a2e',
-  textMuted:    '#6b7280',
-  textLight:    '#9ca3af',
-  success:      '#16a34a',
-  successLight: '#f0fdf4',
-  warning:      '#d97706',
-  warningLight: '#fffbeb',
-  danger:       '#dc2626',
-  dangerLight:  '#fef2f2',
+  text:         'var(--text-main)',
+  textMuted:    'var(--text-sub)',
+  textLight:    'var(--text-muted)',
+  success:      'var(--success)',
+  successLight: 'var(--success-light)',
+  warning:      'var(--warning)',
+  warningLight: 'var(--warning-light)',
+  danger:       'var(--danger)',
+  dangerLight:  'var(--danger-light)',
   white:        '#ffffff',
 }
 
@@ -64,23 +65,6 @@ type TabType = "pending" | "approved" | "rejected";
 const typeLabel = (t: string) =>
   ({ yes_no: "예/아니오", single_select: "단일선택", multi_select: "다중선택", short_text: "단답" }[t] ?? t);
 
-const calcAge = (b: string | null, ref?: string) => {
-  if (!b) return null;
-  const refD  = ref ? new Date(ref + "T00:00:00") : new Date();
-  const birth = new Date(b + "T00:00:00");
-  let age = refD.getFullYear() - birth.getFullYear();
-  const m = refD.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && refD.getDate() < birth.getDate())) age--;
-  return age;
-};
-const patientLabel = (name: string, birth: string | null, gender: string | null, ref?: string) => {
-  const age = calcAge(birth, ref);
-  const g = gender === "m" ? "남" : gender === "f" ? "여" : null;
-  if (age !== null && g) return `${name}(만${age}세/${g})`;
-  if (age !== null) return `${name}(만${age}세)`;
-  if (g) return `${name}(${g})`;
-  return name;
-};
 const rejectLabel = (status: string) =>
   status === "rejected_for_patient" ? "환자 숨김" : "전역 거절";
 
@@ -234,7 +218,7 @@ export default function AIReviewPage() {
         {[
           { label: "검토 대기", value: pendingList.length,  color: C.danger,   bg: C.dangerLight,  tab: "pending"  as TabType },
           { label: "확인됨",   value: approvedList.length, color: C.success,  bg: C.successLight, tab: "approved" as TabType },
-          { label: "거절됨",   value: rejectedList.length, color: C.textMuted, bg: '#f3f4f6',     tab: "rejected" as TabType },
+          { label: "거절됨",   value: rejectedList.length, color: C.textMuted, bg: 'var(--bg-subtle)', tab: "rejected" as TabType },
         ].map(({ label, value, color, bg, tab }) => (
           <div key={label} onClick={() => setActiveTab(tab)} style={{
             background: C.white, borderRadius: 10,

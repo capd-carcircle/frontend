@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { formatPhone } from '../../utils/helpers';
+import { formatPhone, patientLabel as _patientLabel } from '../../utils/helpers';
+import { useToast } from '../../hooks/useToast';
 import {
   CommonQuestion,
   QuestionType,
@@ -40,22 +41,7 @@ interface PatientInfo {
   gender: string | null;
 }
 
-function calcAge(birth_date: string | null): number | null {
-  if (!birth_date) return null
-  const today = new Date(); const birth = new Date(birth_date + 'T00:00:00')
-  let age = today.getFullYear() - birth.getFullYear()
-  const m = today.getMonth() - birth.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-  return age
-}
-function patientLabel(p: PatientInfo): string {
-  const age = calcAge(p.birth_date)
-  const g = p.gender === 'm' ? '남' : p.gender === 'f' ? '여' : null
-  if (age !== null && g) return `${p.name}(만${age}세/${g})`
-  if (age !== null) return `${p.name}(만${age}세)`
-  if (g) return `${p.name}(${g})`
-  return p.name
-}
+const patientLabel = (p: PatientInfo): string => _patientLabel(p.name, p.birth_date, p.gender)
 
 /* ── 아이콘 ─────────────────────────────────────────────── */
 const IconEdit = () => (
@@ -460,6 +446,7 @@ function QuestionFormPanel({
 
 /* ════════════════════════════════════════════════════════ */
 export default function CommonQPage() {
+  const toast = useToast();
   const [questions, setQuestions] = useState<CommonQuestion[]>([]);
   const [allPatients, setAllPatients] = useState<PatientInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -511,7 +498,7 @@ export default function CommonQPage() {
       setQuestions((prev) => [...prev, created]);
       setShowAddForm(false);
     } catch {
-      alert("질문 추가에 실패했습니다.");
+      toast.show("질문 추가에 실패했습니다.");
     } finally {
       setAddSaving(false);
     }
@@ -533,7 +520,7 @@ export default function CommonQPage() {
       setQuestions((prev) => prev.map((q) => (q.id === editId ? updated : q)));
       setEditId(null);
     } catch {
-      alert("수정에 실패했습니다.");
+      toast.show("수정에 실패했습니다.");
     } finally {
       setEditSaving(false);
     }
@@ -545,7 +532,7 @@ export default function CommonQPage() {
       await deleteCommonQuestion(id);
       setQuestions((prev) => prev.filter((q) => q.id !== id));
     } catch {
-      alert("삭제에 실패했습니다.");
+      toast.show("삭제에 실패했습니다.");
     }
   };
 
@@ -554,7 +541,7 @@ export default function CommonQPage() {
       const updated = await toggleCommonQuestion(id);
       setQuestions((prev) => prev.map((q) => (q.id === id ? updated : q)));
     } catch {
-      alert("상태 변경에 실패했습니다.");
+      toast.show("상태 변경에 실패했습니다.");
     }
   };
 
@@ -568,6 +555,14 @@ export default function CommonQPage() {
       display: "flex", flexDirection: "column", gap: 16,
       background: C.bg, minHeight: 0,
     }}>
+      {/* ── 토스트 ── */}
+      {toast.message && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: '#1a1a2e', color: '#fff', padding: '10px 20px',
+          borderRadius: 8, fontSize: 14, zIndex: 9999, whiteSpace: 'nowrap',
+        }}>{toast.message}</div>
+      )}
       {/* ── 헤더 ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>

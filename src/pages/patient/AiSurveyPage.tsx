@@ -18,17 +18,17 @@ const C = {
   textMuted:    'var(--text-muted)',
   success:      'var(--success)',
   successLight: 'var(--success-light)',
-  successBorder:'#bbf7d0',
+  successBorder:'var(--success-border)',
   danger:       'var(--danger)',
   dangerLight:  'var(--danger-light)',
-  dangerBorder: '#fecaca',
+  dangerBorder: 'var(--danger-border)',
   ai:           'var(--ai-accent)',
   aiLight:      'var(--ai-accent-light)',
   aiMedium:     'var(--ai-accent-medium)',
   aiBorder:     'var(--ai-accent-border)',
-  gray:         '#374151',
-  grayMid:      '#9ca3af',
-  grayBorder:   '#e5e7eb',
+  gray:         'var(--text-dark)',
+  grayMid:      'var(--text-muted)',
+  grayBorder:   'var(--border)',
 }
 
 // ── 타입 ──────────────────────────────────────────────────
@@ -482,15 +482,15 @@ export default function AiSurveyPage() {
         {aiReset && (
           <div style={{
             margin: '0 0 20px', padding: '14px 16px', borderRadius: 12,
-            backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d',
+            backgroundColor: 'var(--warning-light)', border: '1.5px solid var(--warning-border)',
             display: 'flex', alignItems: 'flex-start', gap: 10,
           }}>
             <span style={{ fontSize: 20 }}>⚠️</span>
             <div>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#92400e' }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--warning-text)' }}>
                 공통 질문이 수정되어 AI 질문이 새로 생성되었습니다.
               </p>
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#b45309' }}>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--warning-text-sub)' }}>
                 아래 새 질문에 모두 답변하신 후 최종 제출해 주세요.
               </p>
             </div>

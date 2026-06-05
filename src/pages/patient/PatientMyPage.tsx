@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useToast } from '../../hooks/useToast'
-import { formatPhone } from '../../utils/helpers'
+import { formatPhone, calcAge } from '../../utils/helpers'
 import {
   getHospitals, getDoctors,
   patientConnectRequest, getMyPendingRequest, cancelMyRequest, patientDischargeRequest,
@@ -34,14 +34,6 @@ interface PendingReq {
   id: number; request_type: string; doctor_name: string | null; status: string
 }
 
-function calcAge(birth_date: string | null): number | null {
-  if (!birth_date) return null
-  const today = new Date(); const birth = new Date(birth_date + 'T00:00:00')
-  let age = today.getFullYear() - birth.getFullYear()
-  const m = today.getMonth() - birth.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-  return age
-}
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (

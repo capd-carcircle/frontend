@@ -17,10 +17,14 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
 // refresh 진행 중 여부 & 대기 큐 (동시 요청 중복 refresh 방지)
 let isRefreshing = false
-let refreshQueue: Array<(token: string) => void> = []
+let refreshQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = []
 
-function processQueue(newToken: string) {
-  refreshQueue.forEach(resolve => resolve(newToken))
+function processQueue(newToken: string | null, err?: unknown) {
+  if (newToken) {
+    refreshQueue.forEach(({ resolve }) => resolve(newToken))
+  } else {
+    refreshQueue.forEach(({ reject }) => reject(err))
+  }
   refreshQueue = []
 }
 
@@ -49,11 +53,14 @@ client.interceptors.response.use(
     // 이미 refresh 중이면 큐에 대기
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
-        refreshQueue.push((newToken: string) => {
-          if (!axiosError.config) { reject(error); return }
-          axiosError.config._retry = true
-          axiosError.config.headers.Authorization = `Bearer ${newToken}`
-          resolve(client(axiosError.config))
+        refreshQueue.push({
+          resolve: (newToken: string) => {
+            if (!axiosError.config) { reject(error); return }
+            axiosError.config._retry = true
+            axiosError.config.headers.Authorization = `Bearer ${newToken}`
+            resolve(client(axiosError.config))
+          },
+          reject,
         })
       })
     }
@@ -75,7 +82,8 @@ client.interceptors.response.use(
       processQueue(newAccessToken)
       axiosError.config!.headers.Authorization = `Bearer ${newAccessToken}`
       return client(axiosError.config!)
-    } catch {
+    } catch (refreshError) {
+      processQueue(null, refreshError)
       forceLogout()
       return Promise.reject(error)
     } finally {

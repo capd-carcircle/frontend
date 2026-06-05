@@ -34,6 +34,15 @@
   --ai-accent-light:    #f5f3ff;
   --ai-accent-medium:   #ede9fe;
   --ai-accent-border:   #ddd6fe;
+
+  /* 보조 색상 — 상태 배지·경계선·경고 텍스트 */
+  --success-border:     #bbf7d0;
+  --danger-border:      #fecaca;
+  --warning-border:     #fcd34d;
+  --warning-text:       #92400e;
+  --warning-text-sub:   #b45309;
+  --text-dark:          #374151;
+  --bg-subtle:          #f9fafb;
 }
 
 *,

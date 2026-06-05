@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from "react";
 import logoFull from '../../assets/logo_full.png';
 import { useLocation, useNavigate } from "react-router";
+import { logoutApi } from '../../api/auth';
+import useAuthStore from '../../store/authStore';
 
 const C = {
   primary:     'var(--capd-primary)',
@@ -35,8 +37,8 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
   const location = useLocation()
   const navigate  = useNavigate()
 
-  // 실제 로그인한 의사 이름을 localStorage에서 읽어 "OOO 선생님" 형식으로 표시
-  const storedName = localStorage.getItem('user_name') ?? ''
+  // 실제 로그인한 의사 이름을 sessionStorage에서 읽어 "OOO 선생님" 형식으로 표시
+  const storedName = sessionStorage.getItem('user_name') ?? ''
   const displayName = doctorName ?? (storedName ? `${storedName} 선생님` : '선생님')
   const avatarChar = storedName ? storedName[0] : 'D'
 
@@ -54,7 +56,7 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
   }, [])
 
   const fetchPendingCount = useCallback(async () => {
-    const token = localStorage.getItem('access_token')
+    const token = sessionStorage.getItem('access_token')
     if (!token) return
     try {
       const res = await fetch(`${API}/api/v1/registration/doctor/pending`, {
@@ -111,9 +113,15 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
     return location.pathname.startsWith(path)
   }
 
-  const handleLogout = () => {
-    localStorage.clear()
-    navigate('/login')
+  const handleLogout = async () => {
+    try {
+      await logoutApi()
+    } catch {
+      // 서버 오류여도 클라이언트 로그아웃은 진행
+    } finally {
+      useAuthStore.getState().logout()
+      navigate('/login')
+    }
   }
 
   // ────────────────────────────────────────────────
