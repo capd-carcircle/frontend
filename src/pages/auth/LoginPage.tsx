@@ -136,4 +136,17 @@ function Field({ label, type, placeholder, value, onChange }: {
   const [focused, setFocused] = useState(false)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <label style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2
+      <label style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{label}</label>
+      <input
+        type={type ?? 'text'} placeholder={placeholder} value={value} onChange={onChange}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        style={{
+          padding: '11px 14px', borderRadius: 10,
+          border: `1.5px solid ${focused ? 'var(--capd-primary)' : 'var(--capd-border)'}`,
+          fontSize: 14, fontFamily: 'inherit', color: '#1a1a2e',
+          background: '#fff', outline: 'none', transition: 'border-color 0.15s',
+        }}
+      />
+    </div>
+  )
+}

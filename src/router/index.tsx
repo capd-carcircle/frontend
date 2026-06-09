@@ -119,4 +119,29 @@ const router = createBrowserRouter([
   // ── 환자 ──────────────────────────────────────────────────
   {
     path: "/patient",
-    element: <PrivateRoute role="
+    element: <PrivateRoute role="patient"><RecordListPage /></PrivateRoute>,
+  },
+  {
+    path: "/patient/record",
+    element: <PrivateRoute role="patient"><RecordSubmitPage /></PrivateRoute>,
+  },
+  {
+    path: "/patient/survey/common",
+    element: <PrivateRoute role="patient"><CommonSurveyPage /></PrivateRoute>,
+  },
+  {
+    path: "/patient/survey/ai",
+    element: <PrivateRoute role="patient"><AiSurveyPage /></PrivateRoute>,
+  },
+  {
+    path: "/patient/survey/done",
+    element: <PrivateRoute role="patient"><SurveyDonePage /></PrivateRoute>,
+  },
+  {
+    path: "/patient/mypage",
+    element: <PrivateRoute role="patient"><PatientMyPage /></PrivateRoute>,
+  },
+]);
+
+
+export default router;

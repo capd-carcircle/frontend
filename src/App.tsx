@@ -3,4 +3,12 @@ import { RouterProvider } from 'react-router-dom'
 import router from './router'
 import useAuthStore from './store/authStore'
 
-expor
+export default function App() {
+  const hydrateAuth = useAuthStore(s => s.hydrateAuth)
+
+  useEffect(() => {
+    hydrateAuth()
+  }, [hydrateAuth])
+
+  return <RouterProvider router={router} />
+}
