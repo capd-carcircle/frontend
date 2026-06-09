@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import logoFull from '../../assets/logo_full.png'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
@@ -16,10 +16,17 @@ const C = {
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login, isLoading, error } = useAuthStore()
+  const { login, isLoading, error, isHydrated, user } = useAuthStore()
   const [phone,     setPhone]     = useState('')
   const [password,  setPassword]  = useState('')
   const [autoLogin, setAutoLogin] = useState(false)
+
+  // 자동로그인: hydration 완료 후 이미 로그인 상태면 대시보드로 이동
+  useEffect(() => {
+    if (isHydrated && user) {
+      navigate(user.role === 'doctor' ? '/doctor' : '/patient', { replace: true })
+    }
+  }, [isHydrated, user, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
