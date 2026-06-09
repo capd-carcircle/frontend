@@ -47,6 +47,8 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
   const [open, setOpen] = useState(!isMobile)
   const [pendingCount, setPendingCount] = useState(0)
   const prevPendingRef = useRef<number | null>(null)
+  // 데스크톱에서 사용자가 수동으로 접은 상태 기억 (모바일 전환 후 복귀 시 유지)
+  const desktopCollapsedRef = useRef<boolean>(false)
 
   // 브라우저 알림 권한 요청 (한 번만)
   useEffect(() => {
@@ -95,12 +97,20 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
     const onResize = () => {
       const mobile = window.innerWidth < MOBILE_BP
       setIsMobile(mobile)
-      // 뷰포트 전환 시 기본값: 데스크톱=열림, 모바일=닫힘
-      if (mobile !== isMobile) setOpen(!mobile)
+      if (mobile !== isMobile) {
+        if (mobile) {
+          // 데스크톱 → 모바일: 현재 collapse 상태 저장 후 모바일 메뉴 닫기
+          desktopCollapsedRef.current = !open
+          setOpen(false)
+        } else {
+          // 모바일 → 데스크톱: 이전 collapse 상태 복원
+          setOpen(!desktopCollapsedRef.current)
+        }
+      }
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [isMobile])
+  }, [isMobile, open])
 
   // 모바일에서 메뉴 항목 클릭 시 자동으로 닫기
   const handleNav = (path: string) => {
@@ -168,21 +178,19 @@ export function DoctorLayout({ children, doctorName }: DoctorLayoutProps) {
                 <img src={logoFull} alt="CAPD" style={{ height: 28, objectFit: 'contain' }} />
               </div>
             )}
-            {!open && (
-              <div
-                onClick={() => navigate('/doctor')}
-                style={{ cursor: 'pointer' }}
-              >
-                <img src={logoFull} alt="CAPD" style={{ height: 28, objectFit: 'contain' }} />
-              </div>
-            )}
             <button
-              onClick={() => setOpen(o => !o)}
+              onClick={() => {
+                const next = !open
+                desktopCollapsedRef.current = !next
+                setOpen(next)
+              }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: 4, borderRadius: 6,
-                color: C.textMuted, fontSize: 16, lineHeight: 1,
+                padding: '4px 8px', borderRadius: 6,
+                color: C.textMuted, fontSize: 14, lineHeight: 1,
                 flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: open ? 'auto' : 40, height: open ? 'auto' : 32,
               }}
               title={open ? '접기' : '펼치기'}
             >
