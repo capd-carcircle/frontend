@@ -138,7 +138,7 @@ export default function PatientMyPage() {
     getHospitals().then(setHospitals).catch(() => {})
   }, [navigate])
 
-  const apiFetch = async (body: object) => {
+  const patchProfile = async (body: object) => {
     const res = await apiFetch(`${API}/api/v1/auth/me`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
@@ -185,7 +185,7 @@ export default function PatientMyPage() {
 
     setSaving(true)
     try {
-      await apiFetch(body)
+      await patchProfile(body)
       setProfile(p => p ? { ...p, self_memo: memo, address } : p)
       saveToast.show('saved')
       setEditMode(false)
