@@ -49,6 +49,9 @@ interface PatientRecordRow {
 interface PatientRecordsResponse {
   patient_id:   number;
   patient_name: string;
+  birth_date:   string | null;
+  gender:       string | null;
+  phone_number: string | null;
   records:      PatientRecordRow[];
 }
 
@@ -151,13 +154,16 @@ export default function PatientRecordsPage() {
     });
   };
 
-  const patientName = data?.patient_name ?? passedName;
-  const displayName = patientLabel(patientName, passedBirth, passedGender);
-  const totalCount  = data?.records.length ?? 0;
-  const grouped     = data ? groupByMonth(data.records) : new Map();
+  const patientName  = data?.patient_name ?? passedName;
+  const birthDate    = data?.birth_date ?? passedBirth;
+  const genderRaw    = data?.gender ?? passedGender;
+  const phoneNumber  = data?.phone_number ?? null;
+  const displayName  = patientLabel(patientName, birthDate, genderRaw);
+  const totalCount   = data?.records.length ?? 0;
+  const grouped      = data ? groupByMonth(data.records) : new Map();
 
-  const age    = passedBirth ? calcAge(passedBirth) : null;
-  const gender = passedGender === 'male' ? '남성' : passedGender === 'female' ? '여성' : null;
+  const age    = birthDate ? calcAge(birthDate) : null;
+  const gender = genderRaw === 'male' ? '남성' : genderRaw === 'female' ? '여성' : null;
 
   if (loading) return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, color: C.textMuted, fontSize: 13 }}>
@@ -218,9 +224,10 @@ export default function PatientRecordsPage() {
         <div style={{ display: 'flex', gap: isMobile ? 16 : 32, flexWrap: 'wrap' }}>
           {[
             { label: '이름',     value: patientName || '—' },
-            { label: '나이',     value: age !== null ? `만 ${age}세` : '—' },
+            { label: '만 나이',  value: age !== null ? `만 ${age}세` : '—' },
             { label: '성별',     value: gender ?? '—' },
-            { label: '생년월일', value: passedBirth ?? '—' },
+            { label: '생년월일', value: birthDate ?? '—' },
+            { label: '연락처',   value: phoneNumber ?? '—' },
           ].map(({ label, value }) => (
             <div key={label}>
               <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 2 }}>{label}</div>
@@ -307,7 +314,7 @@ export default function PatientRecordsPage() {
                     <div
                       key={row.record_id}
                       onClick={() => navigate(`/doctor/records/${row.record_id}`, {
-                        state: { recordId: row.record_id, patientName, patientBirthDate: passedBirth, patientGender: passedGender },
+                        state: { recordId: row.record_id, patientName, patientBirthDate: birthDate, patientGender: genderRaw },
                       })}
                       style={{
                         display: 'grid', gridTemplateColumns: COLS,
