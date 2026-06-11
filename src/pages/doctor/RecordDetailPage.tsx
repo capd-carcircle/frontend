@@ -407,7 +407,7 @@ export default function RecordDetailPage() {
   const pad = isMobile ? '16px' : '28px 32px'
 
   return (
-    <main style={{ padding: pad, maxWidth: 1200, margin: '0 auto' }}>
+    <main style={{ padding: pad }}>
       {/* 페이지 제목 */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
         <div>
