@@ -648,7 +648,7 @@ export default function DashboardPage() {
 
   /* ─────────── 통합 렌더 ─────────── */
   /* ─────────── return ─────────── */
-  const pad = isMobile ? '16px' : '28px 28px 28px 24px'
+  const pad = isMobile ? '16px' : '28px 32px'
 
   /* 환자 목록 (테이블 or 카드) */
   const PatientList = error ? (
