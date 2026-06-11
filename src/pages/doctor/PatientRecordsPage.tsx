@@ -1,7 +1,7 @@
 import useAuthStore from '../../store/authStore'
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
-import { calcAge, patientLabel } from '../../utils/helpers';
+import { calcAge, patientLabel, formatPhone } from '../../utils/helpers';
 import { apiFetch } from '../../api/apiFetch';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -100,10 +100,11 @@ export default function PatientRecordsPage() {
   const { patientId }  = useParams<{ patientId: string }>();
   const navigate       = useNavigate();
   const location       = useLocation();
-  const locState       = location.state as { patientName?: string; patientBirthDate?: string | null; patientGender?: string | null } | null;
+  const locState       = location.state as { patientName?: string; patientBirthDate?: string | null; patientGender?: string | null; patientPhone?: string | null } | null;
   const passedName     = locState?.patientName ?? "";
   const passedBirth    = locState?.patientBirthDate ?? null;
   const passedGender   = locState?.patientGender ?? null;
+  const passedPhone    = locState?.patientPhone ?? null;
 
   const [data,    setData]    = useState<PatientRecordsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -157,13 +158,15 @@ export default function PatientRecordsPage() {
   const patientName  = data?.patient_name ?? passedName;
   const birthDate    = data?.birth_date ?? passedBirth;
   const genderRaw    = data?.gender ?? passedGender;
-  const phoneNumber  = data?.phone_number ?? null;
+  const phoneNumber  = data?.phone_number ?? passedPhone;
   const displayName  = patientLabel(patientName, birthDate, genderRaw);
   const totalCount   = data?.records.length ?? 0;
   const grouped      = data ? groupByMonth(data.records) : new Map();
 
   const age    = birthDate ? calcAge(birthDate) : null;
-  const gender = genderRaw === 'male' ? '남성' : genderRaw === 'female' ? '여성' : null;
+  const gender = genderRaw === 'male' || genderRaw === 'm' ? '남성'
+               : genderRaw === 'female' || genderRaw === 'f' ? '여성'
+               : null;
 
   if (loading) return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, color: C.textMuted, fontSize: 13 }}>
@@ -224,10 +227,11 @@ export default function PatientRecordsPage() {
         <div style={{ display: 'flex', gap: isMobile ? 16 : 32, flexWrap: 'wrap' }}>
           {[
             { label: '이름',     value: patientName || '—' },
+            { label: '환자번호', value: data ? `#${String(data.patient_id).padStart(4, '0')}` : '—' },
             { label: '만 나이',  value: age !== null ? `만 ${age}세` : '—' },
             { label: '성별',     value: gender ?? '—' },
             { label: '생년월일', value: birthDate ?? '—' },
-            { label: '연락처',   value: phoneNumber ?? '—' },
+            { label: '연락처',   value: phoneNumber ? formatPhone(phoneNumber) : '—' },
           ].map(({ label, value }) => (
             <div key={label}>
               <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 2 }}>{label}</div>
