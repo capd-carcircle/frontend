@@ -214,7 +214,7 @@ export default function PatientListPage() {
   return (
     <main style={{ padding: pad, minHeight: '100vh' }}>
       <div style={{ marginBottom: isMobile ? 14 : 22 }}>
-        <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>담당 환자 관리</h1>
+        <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, letterSpacing: '-0.04em' }}>담당 환자 관리</h1>
       </div>
 
       {/* scope 탭 */}

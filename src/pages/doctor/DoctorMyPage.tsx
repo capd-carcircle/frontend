@@ -68,6 +68,12 @@ export default function DoctorMyPage() {
   const [formError,     setFormError]     = useState('')
 
   const token = () => localStorage.getItem('access_token') ?? ''
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   useEffect(() => {
     apiFetch(`${API}/api/v1/auth/me/profile`, { headers: { Authorization: `Bearer ${token()}` } })
@@ -117,9 +123,9 @@ export default function DoctorMyPage() {
   if (err || !profile) return <div style={{ padding: 40, color: C.danger, fontSize: 14 }}>{err || '오류가 발생했습니다.'}</div>
 
   return (
-    <div style={{ padding: '28px 24px', maxWidth: 560, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <div style={{ padding: isMobile ? '16px' : '28px 32px', maxWidth: 560, fontFamily: "'Noto Sans KR', sans-serif" }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.04em' }}>마이페이지</h1>
+        <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, letterSpacing: '-0.04em' }}>마이페이지</h1>
       </div>
 
       <div style={card}>

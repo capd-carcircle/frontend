@@ -102,6 +102,13 @@ export default function PatientRecordsPage() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState("");
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const thisMonth = new Date().toISOString().slice(0, 7);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set([thisMonth]));
 
@@ -159,7 +166,7 @@ export default function PatientRecordsPage() {
   return (
     <main style={{
       flex: 1, overflowY: "auto",
-      padding: 24,
+      padding: isMobile ? '16px' : '28px 32px',
       display: 'flex', flexDirection: 'column', gap: 16,
       background: C.bg,
     }}>
@@ -169,18 +176,18 @@ export default function PatientRecordsPage() {
           onClick={() => navigate(-1)}
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            padding: "8px 14px", borderRadius: 8,
-            border: `1.5px solid ${C.border}`, background: C.white,
-            color: C.text, fontSize: 13, fontWeight: 600,
-            cursor: "pointer", fontFamily: "inherit",
+            padding: "6px 16px", borderRadius: 20,
+            border: `0.5px solid ${C.border}`, background: C.white,
+            color: C.textMuted, fontSize: 13, fontWeight: 500,
+            cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = C.bg)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = C.white)}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.bg; e.currentTarget.style.color = C.text }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.textMuted }}
         >
           ← 뒤로
         </button>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: 0 }}>
+          <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.04em' }}>
             {displayName} 환자
           </h1>
           <p style={{ fontSize: 13, color: C.textMuted, margin: '3px 0 0' }}>

@@ -138,12 +138,18 @@ export default function PatientApprovalPage() {
 
   const approvedCount = done.filter(d => d.finalStatus === 'approved').length
   const rejectedCount = done.filter(d => d.finalStatus === 'rejected').length
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768)
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   return (
-    <main style={{ padding: 32 }}>
+    <main style={{ padding: isMobile ? '16px' : '28px 32px' }}>
       {/* 헤더 */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>
+      <div style={{ marginBottom: isMobile ? 16 : 24 }}>
+        <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, letterSpacing: '-0.04em' }}>
           담당 연결 관리
         </h1>
       </div>

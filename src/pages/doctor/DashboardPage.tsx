@@ -786,7 +786,7 @@ export default function DashboardPage() {
 
       {/* 헤더 */}
       <div style={{ marginBottom: isMobile ? 14 : 18 }}>
-        <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>대시보드</h1>
+        <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, letterSpacing: '-0.04em' }}>대시보드</h1>
         <div style={{ fontSize: isMobile ? 12 : 13, color: C.textMuted, marginTop: 3 }}>{formatDateKo(currentDate)}</div>
       </div>
 

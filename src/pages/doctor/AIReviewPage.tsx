@@ -192,7 +192,7 @@ export default function AIReviewPage() {
       {/* ── 헤더 ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: C.text, margin: 0 }}>
+          <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.04em' }}>
             AI 맞춤 질문 검토
           </h1>
           {!isMobile && (
