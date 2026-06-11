@@ -185,7 +185,7 @@ export default function AIReviewPage() {
   return (
     <main style={{
       flex: 1, overflowY: "auto",
-      padding: isMobile ? 14 : 24,
+      padding: isMobile ? '16px' : '28px 32px',
       display: "flex", flexDirection: "column", gap: 16,
       background: C.bg, minHeight: 0,
     }}>
