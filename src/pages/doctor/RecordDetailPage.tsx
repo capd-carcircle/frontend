@@ -408,49 +408,52 @@ export default function RecordDetailPage() {
 
   return (
     <main style={{ padding: pad, maxWidth: 1200, margin: '0 auto' }}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 12, color: C.textMuted, fontFamily: 'inherit' }}
-        >
-          ← 목록으로
-        </button>
-        <div style={{ flex: 1 }}>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: C.text, letterSpacing: '-0.03em' }}>
-            {patientLabel(detail.patient_name, detail.record_date)} 환자 — {detail.record_date}
-          </h1>
-          <p style={{ margin: 0, fontSize: 12, color: C.textMuted, marginTop: 2 }}>제출 시간: {submitTime}</p>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* 헤더 카드 */}
+      <div style={{ background: '#fff', borderRadius: 16, border: `0.5px solid ${C.border}`, padding: '14px 20px', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 12, color: C.textMuted, fontFamily: 'inherit', flexShrink: 0 }}
+          >
+            ← 목록
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 15 : 17, fontWeight: 700, color: C.text, letterSpacing: '-0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {patientLabel(detail.patient_name, detail.record_date)} 환자 — {detail.record_date}
+            </h1>
+            <p style={{ margin: 0, fontSize: 11, color: C.textMuted, marginTop: 2 }}>제출 시간: {submitTime}</p>
+          </div>
+          {/* 상태 배지 — 고정 크기 */}
           {isDraft ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f3f4f6', color: C.textMuted, border: `0.5px solid #e5e7eb`, borderRadius: 20, padding: '8px 16px', fontSize: 12, fontWeight: 500 }}>
+            <span style={{ flexShrink: 0, width: 84, height: 34, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap', background: '#f3f4f6', color: C.textMuted, border: `0.5px solid #e5e7eb`, borderRadius: 20, fontSize: 13, fontWeight: 500 }}>
               기록 중
             </span>
           ) : isApproved ? (
-            <>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#ECFDF5', color: '#059669', border: '0.5px solid #A7F3D0', borderRadius: 20, padding: '8px 16px', fontSize: 12, fontWeight: 500 }}>
-                승인 완료
-              </span>
-              <button
-                onClick={handleRevert} disabled={reverting}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 14px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 12, color: C.textMuted, fontFamily: 'inherit' }}
-              >
-                {reverting ? '처리 중...' : '↩ 되돌리기'}
-              </button>
-            </>
+            <span style={{ flexShrink: 0, width: 84, height: 34, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap', background: '#ECFDF5', color: '#059669', border: '0.5px solid #A7F3D0', borderRadius: 20, fontSize: 13, fontWeight: 500 }}>
+              ✓ 승인
+            </span>
           ) : (
-            <>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FEF3C7', color: '#B45309', border: '0.5px solid #FDE68A', borderRadius: 20, padding: '8px 14px', fontSize: 12, fontWeight: 500 }}>
-                미검토
-              </span>
-              <button
-                onClick={handleApprove} disabled={approving}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 22px', background: '#534AB7', color: '#fff', border: 'none', borderRadius: 22, fontSize: 13, fontWeight: 500, cursor: approving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: approving ? 0.7 : 1, boxShadow: '0 2px 8px #534AB730' }}
-              >
-                {approving ? '처리 중...' : '기록 승인'}
-              </button>
-            </>
+            <span style={{ flexShrink: 0, width: 84, height: 34, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap', background: '#FEF3C7', color: '#B45309', border: '0.5px solid #FDE68A', borderRadius: 20, fontSize: 13, fontWeight: 500 }}>
+              미검토
+            </span>
+          )}
+          {/* 액션 버튼 — 고정 크기 (draft일 때 투명 자리확보) */}
+          {isDraft ? (
+            <div style={{ flexShrink: 0, width: 100, height: 34 }} />
+          ) : isApproved ? (
+            <button
+              onClick={handleRevert} disabled={reverting}
+              style={{ flexShrink: 0, width: 100, height: 34, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap', border: `0.5px solid #e5e7eb`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 13, color: C.textMuted, fontFamily: 'inherit' }}
+            >
+              ↩ 되돌리기
+            </button>
+          ) : (
+            <button
+              onClick={handleApprove} disabled={approving}
+              style={{ flexShrink: 0, width: 100, height: 34, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap', background: '#534AB7', color: '#fff', border: 'none', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: approving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: approving ? 0.7 : 1, boxShadow: '0 2px 8px #534AB730' }}
+            >
+              기록 승인
+            </button>
           )}
         </div>
       </div>
