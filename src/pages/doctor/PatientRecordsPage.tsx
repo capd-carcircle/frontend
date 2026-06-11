@@ -24,11 +24,11 @@ const C = {
   white:        '#ffffff',
 }
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  submitted: { label: "미검토",    color: C.danger,   bg: C.dangerLight  },
-  reviewed:  { label: "승인 완료", color: C.success,  bg: C.successLight },
-  rejected:  { label: "반려",      color: C.textMuted, bg: '#f3f4f6'     },
-  draft:     { label: "임시저장",  color: C.warning,  bg: C.warningLight },
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  submitted: { label: "미검토",    color: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
+  reviewed:  { label: "승인 완료", color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  rejected:  { label: "반려",      color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  draft:     { label: "기록 중",   color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
 }
 
 /* ── 타입 ─────────────────────────────────────────────── */
@@ -47,13 +47,12 @@ interface PatientRecordsResponse {
 
 /* ── 상태 배지 ────────────────────────────────────────── */
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_CFG[status] ?? { label: status, color: C.textMuted, bg: '#f3f4f6' };
+  const s = STATUS_CFG[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' };
   return (
     <span style={{
-      fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99,
-      color: s.color, background: s.bg,
-      border: `1px solid ${s.color}33`,
-      display: 'inline-block',
+      fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 20,
+      color: s.color, background: s.bg, border: `0.5px solid ${s.border}`,
+      display: 'inline-block', whiteSpace: 'nowrap',
     }}>
       {s.label}
     </span>
