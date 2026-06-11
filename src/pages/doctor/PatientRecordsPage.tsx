@@ -171,23 +171,7 @@ export default function PatientRecordsPage() {
       background: C.bg,
     }}>
       {/* ── 헤더 ── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div>
-          <button
-            onClick={() => navigate(-1)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: "6px 16px", borderRadius: 20,
-              border: `0.5px solid ${C.border}`, background: C.white,
-              color: C.textMuted, fontSize: 13, fontWeight: 500,
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = C.bg; e.currentTarget.style.color = C.text }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.textMuted }}
-          >
-            ← 뒤로
-          </button>
-        </div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.04em' }}>
             {displayName} 환자
@@ -196,6 +180,20 @@ export default function PatientRecordsPage() {
             전체 기록 {totalCount}건
           </p>
         </div>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: "6px 16px", borderRadius: 20,
+            border: `0.5px solid ${C.border}`, background: C.white,
+            color: C.textMuted, fontSize: 13, fontWeight: 500,
+            cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.bg; e.currentTarget.style.color = C.text }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.textMuted }}
+        >
+          ← 뒤로
+        </button>
       </div>
 
       {/* ── 기록 없음 ── */}

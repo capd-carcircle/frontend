@@ -404,24 +404,37 @@ export default function RecordDetailPage() {
       detail.total_ultrafiltration != null && detail.total_ultrafiltration < 0 ? 'danger' : null],
   ] as const
 
-  const pad = isMobile ? '16px' : '32px'
+  const pad = isMobile ? '16px' : '28px 32px'
 
   return (
     <main style={{ padding: pad, maxWidth: 1200, margin: '0 auto' }}>
+      {/* 페이지 제목 */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, letterSpacing: '-0.04em' }}>
+            기록 상세
+          </h1>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: C.textMuted }}>
+            {patientLabel(detail.patient_name, detail.record_date)} 환자 · {detail.record_date}
+          </p>
+        </div>
+        <button
+          onClick={() => navigate(-1)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 16px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: '#fff', cursor: 'pointer', fontSize: 13, color: C.textMuted, fontFamily: 'inherit', flexShrink: 0 }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.bg; e.currentTarget.style.color = C.text }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = C.textMuted }}
+        >
+          ← 목록
+        </button>
+      </div>
+
       {/* 헤더 카드 */}
       <div style={{ background: '#fff', borderRadius: 16, border: `0.5px solid ${C.border}`, padding: '14px 20px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 12, color: C.textMuted, fontFamily: 'inherit', flexShrink: 0 }}
-          >
-            ← 목록
-          </button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 15 : 17, fontWeight: 700, color: C.text, letterSpacing: '-0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {patientLabel(detail.patient_name, detail.record_date)} 환자 — {detail.record_date}
-            </h1>
-            <p style={{ margin: 0, fontSize: 11, color: C.textMuted, marginTop: 2 }}>제출 시간: {submitTime}</p>
+            <p style={{ margin: 0, fontSize: isMobile ? 13 : 14, fontWeight: 600, color: C.text, letterSpacing: '-0.02em' }}>
+              제출 시간: {submitTime}
+            </p>
           </div>
           {/* 상태 배지 — 고정 크기 */}
           {isDraft ? (
