@@ -227,8 +227,44 @@ export default function RecordSubmitPage() {
     )
   }
 
-  /* ── 이미 최종 제출된 기록: 읽기 전용 뷰 ──────────────────── */
-  const isSubmitted = todayRecord && todayRecord.status !== 'draft'
+  /* ── 의사가 검토 완료한 기록: 수정 불가 ──────────────────── */
+  const isReviewed  = todayRecord?.status === 'reviewed'
+  /* ── 이미 최종 제출된 기록 (reviewed 제외): 읽기 전용 뷰 ── */
+  const isSubmitted = todayRecord && todayRecord.status !== 'draft' && !isReviewed
+
+  /* ── reviewed: 잠금 화면 ── */
+  if (isReviewed) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--capd-bg)' }}>
+        <Header />
+        <main style={{ maxWidth: 680, margin: '0 auto', padding: '72px 16px 48px' }}>
+          <div style={{
+            backgroundColor: 'var(--success-light)', borderRadius: 16,
+            padding: '32px 24px', textAlign: 'center',
+            border: '1.5px solid var(--success)',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+            <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--success)', marginBottom: 8 }}>
+              검토 완료된 기록입니다
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.6 }}>
+              의사가 검토 완료한 기록은 수정할 수 없습니다.<br />
+              기록 내용은 목록에서 확인하세요.
+            </p>
+            <button
+              onClick={() => navigate('/patient')}
+              style={{
+                padding: '12px 28px', borderRadius: 10,
+                backgroundColor: 'var(--capd-primary)', color: '#fff',
+                border: 'none', fontSize: 14, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >← 기록 목록으로</button>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--capd-bg)' }}>

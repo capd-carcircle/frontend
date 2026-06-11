@@ -412,9 +412,14 @@ export default function RecordListPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const today    = todayStr()
-  const todayRec = records.find(r => r.record_date === today) ?? null
-  const pastRecs = records.filter(r => r.record_date !== today)
+  const today            = todayStr()
+  const todayRec         = records.find(r => r.record_date === today) ?? null
+  const isReviewedToday  = todayRec?.status === 'reviewed'
+  // reviewed 기록은 오늘 카드에서 숨기고 지난 기록에 포함
+  const todayCardRec     = isReviewedToday ? null : todayRec
+  const pastRecs         = isReviewedToday
+    ? records
+    : records.filter(r => r.record_date !== today)
 
   const monthGroups: { key: string; label: string; recs: DailyRecordResponse[] }[] = []
   const seen = new Set<string>()
@@ -504,47 +509,66 @@ export default function RecordListPage() {
         ) : (
           <>
             {/* 오늘 카드 */}
-            <div style={{
-              background: todayRec ? '#fff' : `linear-gradient(135deg, ${C.primary} 0%, #9333ea 100%)`,
-              borderRadius: 18, padding: '20px', marginBottom: 24,
-              boxShadow: todayRec ? '0 2px 12px rgba(0,0,0,0.08)' : '0 4px 20px rgba(124,58,237,0.35)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-              border: todayRec ? `1px solid ${C.border}` : 'none',
-            }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: todayRec ? C.textLight : 'rgba(255,255,255,0.7)', marginBottom: 5 }}>TODAY</p>
-                <p style={{ fontSize: 16, fontWeight: 700, color: todayRec ? C.text : '#fff', marginBottom: 6 }}>{formatDateFull(today)}</p>
-                {todayRec ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge status={todayRec.status} />
-                    {todayRec.total_ultrafiltration != null && (
-                      <span style={{ fontSize: 12, color: C.textMuted }}>
-                        제수량 {todayRec.total_ultrafiltration > 0 ? '+' : ''}{todayRec.total_ultrafiltration}g
-                      </span>
-                    )}
+            {isReviewedToday ? (
+              /* reviewed — 잠금 안내 */
+              <div style={{
+                background: C.successLight, borderRadius: 18, padding: '20px', marginBottom: 24,
+                border: `1.5px solid ${C.success}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.success, marginBottom: 5 }}>TODAY</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>{formatDateFull(today)}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Badge status="reviewed" />
+                    <span style={{ fontSize: 12, color: C.textMuted }}>의사가 검토 완료한 기록입니다</span>
                   </div>
-                ) : (
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>아직 오늘 기록이 없어요</p>
-                )}
+                </div>
+                <div style={{ fontSize: 28 }}>🔒</div>
               </div>
-              <button
-                onClick={() => { if (hasDoctor !== false || todayRec) navigate('/patient/record') }}
-                disabled={hasDoctor === false && !todayRec}
-                style={{
-                  padding: '10px 18px',
-                  background: (hasDoctor === false && !todayRec) ? '#d1d5db' : todayRec ? C.primary : '#fff',
-                  color: (hasDoctor === false && !todayRec) ? '#6b7280' : todayRec ? '#fff' : C.primary,
-                  border: 'none', borderRadius: 10,
-                  fontSize: 13, fontWeight: 700,
-                  cursor: (hasDoctor === false && !todayRec) ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                  boxShadow: todayRec ? 'none' : '0 2px 6px rgba(0,0,0,0.12)',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {!todayRec ? (hasDoctor === false ? '제출 불가' : '지금 기록하기') : todayRec.status === 'draft' ? '이어서 기록하기' : '기록 보기'}
-              </button>
-            </div>
+            ) : (
+              <div style={{
+                background: todayCardRec ? '#fff' : `linear-gradient(135deg, ${C.primary} 0%, #9333ea 100%)`,
+                borderRadius: 18, padding: '20px', marginBottom: 24,
+                boxShadow: todayCardRec ? '0 2px 12px rgba(0,0,0,0.08)' : '0 4px 20px rgba(124,58,237,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                border: todayCardRec ? `1px solid ${C.border}` : 'none',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: todayCardRec ? C.textLight : 'rgba(255,255,255,0.7)', marginBottom: 5 }}>TODAY</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: todayCardRec ? C.text : '#fff', marginBottom: 6 }}>{formatDateFull(today)}</p>
+                  {todayCardRec ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Badge status={todayCardRec.status} />
+                      {todayCardRec.total_ultrafiltration != null && (
+                        <span style={{ fontSize: 12, color: C.textMuted }}>
+                          제수량 {todayCardRec.total_ultrafiltration > 0 ? '+' : ''}{todayCardRec.total_ultrafiltration}g
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>아직 오늘 기록이 없어요</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => { if (hasDoctor !== false || todayCardRec) navigate('/patient/record') }}
+                  disabled={hasDoctor === false && !todayCardRec}
+                  style={{
+                    padding: '10px 18px',
+                    background: (hasDoctor === false && !todayCardRec) ? '#d1d5db' : todayCardRec ? C.primary : '#fff',
+                    color: (hasDoctor === false && !todayCardRec) ? '#6b7280' : todayCardRec ? '#fff' : C.primary,
+                    border: 'none', borderRadius: 10,
+                    fontSize: 13, fontWeight: 700,
+                    cursor: (hasDoctor === false && !todayCardRec) ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    boxShadow: todayCardRec ? 'none' : '0 2px 6px rgba(0,0,0,0.12)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {!todayCardRec ? (hasDoctor === false ? '제출 불가' : '지금 기록하기') : todayCardRec.status === 'draft' ? '이어서 기록하기' : '기록 보기'}
+                </button>
+              </div>
+            )}
 
             {/* 지난 기록 */}
             {monthGroups.length > 0 ? (
