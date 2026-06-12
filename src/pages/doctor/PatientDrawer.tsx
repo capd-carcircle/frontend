@@ -332,6 +332,7 @@ export function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
     const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
 <title>CAPD — ${d.patient.name}</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"><\/script>
 <style>
 *{box-sizing:border-box}
 body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;color:#1a1a2e;margin:28px 32px}
@@ -350,7 +351,7 @@ h1{font-size:22px;font-weight:900;margin:0 0 2px;color:#3b0764}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 .chart-box{border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa}
 .chart-label{font-size:13px;font-weight:700;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-canvas{width:100%!important;height:120px!important}
+canvas{width:100%!important;height:200px!important}
 table{width:100%;border-collapse:collapse}
 th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:14px;font-weight:700;border:1px solid #e5e7eb}
 td{padding:8px 10px;border:1px solid #e5e7eb;font-size:14px;vertical-align:top}
@@ -436,27 +437,78 @@ tr:nth-child(even) td{background:#f9fafb}
 (function() {
   var data = ${chartDataJson};
   var labels = data.labels;
+
   var commonOpts = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { ticks: { font: { size: 9 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
-      y: { ticks: { font: { size: 9 } }, grid: { color: '#f0f0f0' } }
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true,
+        labels: { font: { size: 12 }, boxWidth: 16, padding: 8,
+          filter: function(item) { return item.text !== ''; } }
+      },
+      tooltip: { enabled: true, mode: 'index', intersect: false,
+        bodyFont: { size: 12 }, titleFont: { size: 12 } }
     },
-    elements: { point: { radius: 3, hitRadius: 5 }, line: { tension: 0 } }
+    scales: {
+      x: {
+        type: 'time',
+        time: { unit: 'day', displayFormats: { day: 'M/d' } },
+        ticks: { font: { size: 12 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 },
+        grid: { display: false }
+      },
+      y: {
+        ticks: { font: { size: 12 } },
+        grid: { color: '#f0f0f0' }
+      }
+    },
+    elements: { point: { radius: 4, hitRadius: 12, hoverRadius: 6 }, line: { tension: 0 } }
   };
+
   function mkChart(id, label, vals, color) {
+    var points = labels.map(function(d, i) {
+      return (vals[i] !== null && vals[i] !== undefined) ? { x: d, y: vals[i] } : null;
+    }).filter(Boolean);
+
+    var sum = points.reduce(function(a, p) { return a + p.y; }, 0);
+    var avg = points.length ? sum / points.length : null;
+
+    var datasets = [{
+      label: label,
+      data: points,
+      borderColor: color,
+      backgroundColor: 'transparent',
+      fill: false,
+      spanGaps: false,
+      borderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 7
+    }];
+
+    if (avg !== null) {
+      var avgLabel = '평균 ' + avg.toFixed(1);
+      datasets.push({
+        label: avgLabel,
+        data: labels.map(function(d) { return { x: d, y: avg }; }),
+        borderColor: color,
+        borderWidth: 1.5,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        spanGaps: true,
+        tooltip: { enabled: false }
+      });
+    }
+
     new Chart(document.getElementById(id), {
       type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{ label: label, data: vals, borderColor: color, backgroundColor: color,
-          fill: false, spanGaps: true, borderWidth: 2 }]
-      },
+      data: { datasets: datasets },
       options: commonOpts
     });
   }
+
   mkChart('chartWeight',  '체중',     data.weights,  '#7c3aed');
   mkChart('chartBP',      '수축기혈압', data.systolic, '#dc2626');
   mkChart('chartUF',      '제수량',   data.uf,       '#2563eb');
