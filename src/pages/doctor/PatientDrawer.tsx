@@ -27,7 +27,8 @@ const C = {
 
 interface DrawerProfile {
   id: number; name: string; phone_number: string
-  birth_date: string | null; hospital_name: string | null
+  birth_date: string | null; gender: string | null
+  hospital_name: string | null
   doctor_name: string | null; self_memo: string | null
   joined_at: string | null; is_current_patient: boolean
 }
@@ -317,31 +318,31 @@ export function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
 <style>
 *{box-sizing:border-box}
-body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:12px;color:#1a1a2e;margin:28px 32px}
-h1{font-size:18px;font-weight:900;margin:0 0 2px;color:#3b0764}
-.subtitle{color:#7c3aed;font-size:12px;font-weight:700;margin-bottom:10px}
-.info{color:#6b7280;font-size:11px;margin-bottom:20px;line-height:2;border-left:3px solid #7c3aed;padding-left:10px}
-.section-title{font-size:13px;font-weight:800;color:#1a1a2e;margin:24px 0 12px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;color:#1a1a2e;margin:28px 32px}
+h1{font-size:22px;font-weight:900;margin:0 0 2px;color:#3b0764}
+.subtitle{color:#7c3aed;font-size:15px;font-weight:700;margin-bottom:10px}
+.info{color:#6b7280;font-size:14px;margin-bottom:20px;line-height:2;border-left:3px solid #7c3aed;padding-left:10px}
+.section-title{font-size:16px;font-weight:800;color:#1a1a2e;margin:24px 0 12px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
 .risk-summary{display:flex;gap:12px;margin-bottom:20px}
 .risk-card{flex:1;border-radius:8px;padding:10px 14px;text-align:center}
-.risk-card .num{font-size:22px;font-weight:900;line-height:1.2}
-.risk-card .lbl{font-size:10px;font-weight:700;margin-top:2px}
+.risk-card .num{font-size:26px;font-weight:900;line-height:1.2}
+.risk-card .lbl{font-size:13px;font-weight:700;margin-top:2px}
 .risk-card.urgent{background:#fef2f2;color:#dc2626}
 .risk-card.caution{background:#fffbeb;color:#d97706}
 .risk-card.normal{background:#f0fdf4;color:#16a34a}
 .risk-card.none{background:#f3f4f6;color:#6b7280}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 .chart-box{border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa}
-.chart-label{font-size:10px;font-weight:700;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.chart-label{font-size:13px;font-weight:700;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 canvas{width:100%!important;height:120px!important}
 table{width:100%;border-collapse:collapse}
-th{background:#f3f4f6;padding:7px 8px;text-align:left;font-size:11px;font-weight:700;border:1px solid #e5e7eb}
-td{padding:6px 8px;border:1px solid #e5e7eb;font-size:11px;vertical-align:top}
+th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:14px;font-weight:700;border:1px solid #e5e7eb}
+td{padding:8px 10px;border:1px solid #e5e7eb;font-size:14px;vertical-align:top}
 tr:nth-child(even) td{background:#f9fafb}
 .risk-긴급{color:#dc2626;font-weight:700}
 .risk-주의{color:#d97706;font-weight:700}
 .risk-정상{color:#16a34a}
-.footer{margin-top:16px;color:#9ca3af;font-size:10px;text-align:right}
+.footer{margin-top:16px;color:#9ca3af;font-size:13px;text-align:right}
 @media print{
   body{margin:12px 16px}
   .charts{grid-template-columns:1fr 1fr 1fr}
@@ -466,7 +467,7 @@ tr:nth-child(even) td{background:#f9fafb}
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 <button
-                  onClick={() => { onClose(); navigate(`/doctor/patients/${patientId}/records`, { state: { patientName: profile.name } }) }}
+                  onClick={() => { onClose(); navigate(`/doctor/patients/${patientId}/records`, { state: { patientName: profile.name, patientBirthDate: profile.birth_date, patientGender: profile.gender, patientPhone: profile.phone_number } }) }}
                   style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                 >
                   기록 보기 →
