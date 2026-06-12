@@ -336,9 +336,13 @@ export function PatientDrawer({ patientId, onClose, onDischarge, navigate }: {
 <style>
 *{box-sizing:border-box}
 body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;color:#1a1a2e;margin:28px 32px}
-h1{font-size:22px;font-weight:900;margin:0 0 2px;color:#3b0764}
-.subtitle{color:#7c3aed;font-size:15px;font-weight:700;margin-bottom:10px}
-.info{color:#6b7280;font-size:14px;margin-bottom:20px;line-height:2;border-left:3px solid #7c3aed;padding-left:10px}
+.header-block{background:linear-gradient(135deg,#3b0764 0%,#6d28d9 100%);color:#fff;border-radius:12px;padding:20px 24px;margin-bottom:24px}
+.header-block .doc-label{font-size:12px;font-weight:600;letter-spacing:1.5px;opacity:.75;margin-bottom:6px;text-transform:uppercase}
+.header-block h1{font-size:24px;font-weight:900;margin:0 0 4px;color:#fff;letter-spacing:-.02em}
+.header-block .patient-name{font-size:18px;font-weight:700;color:#e9d5ff;margin-bottom:14px}
+.header-block .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px}
+.header-block .info-item{font-size:13px;color:rgba(255,255,255,.82);line-height:1.7}
+.header-block .info-item span{font-weight:700;color:#fff}
 .section-title{font-size:16px;font-weight:800;color:#1a1a2e;margin:24px 0 12px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
 .risk-summary{display:flex;gap:12px;margin-bottom:20px}
 .risk-card{flex:1;border-radius:8px;padding:10px 14px;text-align:center}
@@ -350,7 +354,7 @@ h1{font-size:22px;font-weight:900;margin:0 0 2px;color:#3b0764}
 .risk-card.none{background:#f3f4f6;color:#6b7280}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 .chart-box{border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa}
-.chart-label{font-size:13px;font-weight:700;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.chart-label{font-size:13px;font-weight:700;color:#6b7280;margin-bottom:6px;letter-spacing:.3px}
 canvas{width:100%!important;height:200px!important}
 table{width:100%;border-collapse:collapse}
 th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:14px;font-weight:700;border:1px solid #e5e7eb}
@@ -367,6 +371,8 @@ tr:nth-child(even) td{background:#f9fafb}
   body{margin:12px 16px}
   .print-bar{display:none}
   .charts{grid-template-columns:1fr 1fr}
+  .chart-box{break-inside:avoid}
+  canvas{width:100%!important;height:200px!important;max-height:200px!important}
   @page{size:A4;margin:15mm}
 }
 </style>
@@ -375,12 +381,18 @@ tr:nth-child(even) td{background:#f9fafb}
   <button class="print-btn" onclick="window.print()">🖨️ PDF 내보내기</button>
   <span style="color:#6b7280;font-size:13px">미리보기 — 인쇄하거나 PDF로 저장하세요</span>
 </div>
-<h1>CAPD 일일 기록 요약지</h1>
-<div class="subtitle">${d.patient.name} 환자</div>
-<div class="info">
-  생년월일: ${d.patient.birth_date ?? '—'} &nbsp;|&nbsp; 성별: ${d.patient.gender ?? '—'} &nbsp;|&nbsp; 연락처: ${formatPhone(d.patient.phone_number)}<br>
-  병원: ${d.patient.hospital ?? '—'} &nbsp;|&nbsp; 담당의: ${d.doctor_name}<br>
-  조회 기간: ${pdfStart || '전체'} ~ ${pdfEnd || '전체'} &nbsp;|&nbsp; 기록 수: ${d.records.length}건
+<div class="header-block">
+  <div class="doc-label">CAPD 일일 기록 요약지</div>
+  <h1>${d.patient.name} 환자</h1>
+  <div class="info-grid">
+    <div class="info-item">생년월일 <span>${d.patient.birth_date ?? '—'}</span></div>
+    <div class="info-item">성별 <span>${d.patient.gender ?? '—'}</span></div>
+    <div class="info-item">연락처 <span>${formatPhone(d.patient.phone_number)}</span></div>
+    <div class="info-item">병원 <span>${d.patient.hospital ?? '—'}</span></div>
+    <div class="info-item">담당의 <span>${d.doctor_name}</span></div>
+    <div class="info-item">기록 수 <span>${d.records.length}건</span></div>
+    <div class="info-item" style="grid-column:1/-1">조회 기간 <span>${pdfStart || '전체'} ~ ${pdfEnd || '전체'}</span></div>
+  </div>
 </div>
 
 <div class="section-title">위험도 분포</div>
@@ -438,7 +450,7 @@ tr:nth-child(even) td{background:#f9fafb}
   var data = ${chartDataJson};
   var labels = data.labels;
 
-  // 평균값을 점선 오른쪽 끝에 텍스트로 표기하는 플러그인
+  // 평균값을 점선 오른쪽 끝 + 왼쪽 Y축에 색깔로 표기하는 플러그인
   var avgLabelPlugin = {
     id: 'avgLabel',
     afterDraw: function(chart) {
@@ -449,13 +461,19 @@ tr:nth-child(even) td{background:#f9fafb}
         if (meta.hidden) return;
         var yVal = ds.data[0].y;
         var yPixel = chart.scales.y.getPixelForValue(yVal);
+        var xLeft  = chart.chartArea.left;
         var xRight = chart.chartArea.right;
         ctx.save();
         ctx.font = 'bold 11px Apple SD Gothic Neo, Malgun Gothic, sans-serif';
         ctx.fillStyle = ds.borderColor;
+        // 오른쪽 끝 레이블
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
-        ctx.fillText('평균 ' + yVal.toFixed(1) + ds._unit, xRight - 2, yPixel - 2);
+        ctx.fillText('평균 ' + yVal.toFixed(1), xRight - 2, yPixel - 2);
+        // 왼쪽 Y축 레이블
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(yVal.toFixed(1), xLeft - 4, yPixel);
         ctx.restore();
       });
     }
@@ -495,7 +513,7 @@ tr:nth-child(even) td{background:#f9fafb}
       x: {
         type: 'time',
         time: { unit: 'day', displayFormats: { day: 'M/d' } },
-        ticks: { font: { size: 12 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 },
+        ticks: { font: { size: 11 }, maxRotation: 60, autoSkip: false },
         grid: { display: false }
       },
       y: {
@@ -555,6 +573,20 @@ tr:nth-child(even) td{background:#f9fafb}
   mkChart('chartBP',      '수축기혈압', data.systolic, '#dc2626', 'mmHg');
   mkChart('chartUF',      '제수량',   data.uf,       '#2563eb', 'mL');
   mkChart('chartGlucose', '공복혈당', data.glucose,  '#d97706', 'mg/dL');
+
+  // 프린트 시 Chart.js 캔버스 비율 깨짐 방지
+  window.addEventListener('beforeprint', function() {
+    Object.values(Chart.instances).forEach(function(chart) {
+      chart.canvas.style.height = '200px';
+      chart.canvas.height = 200;
+      chart.resize(chart.canvas.offsetWidth, 200);
+    });
+  });
+  window.addEventListener('afterprint', function() {
+    Object.values(Chart.instances).forEach(function(chart) {
+      chart.resize();
+    });
+  });
 })();
 <\/script>
 </body></html>`
