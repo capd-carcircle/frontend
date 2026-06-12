@@ -24,11 +24,11 @@ const C = {
   white:        '#ffffff',
 }
 
-const STATUS_CFG: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
-  submitted: { label: "미검토",    icon: '🕐', color: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
-  reviewed:  { label: "승인 완료", icon: '✅', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
-  rejected:  { label: "반려",      icon: '❌', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
-  draft:     { label: "기록 중",   icon: '✏️', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+const STATUS_CFG: Record<string, { label: string; icon?: string; color: string; bg: string; border: string }> = {
+  submitted: { label: "미검토",    color: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
+  reviewed:  { label: "승인 완료", color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  rejected:  { label: "반려",      color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  draft:     { label: "기록 중",   color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
 }
 
 const RISK_CFG: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
