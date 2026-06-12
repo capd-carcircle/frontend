@@ -24,17 +24,17 @@ const C = {
   white:        '#ffffff',
 }
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  submitted: { label: "미검토",    color: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
-  reviewed:  { label: "승인 완료", color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
-  rejected:  { label: "반려",      color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
-  draft:     { label: "기록 중",   color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+const STATUS_CFG: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
+  submitted: { label: "미검토",    icon: '🕐', color: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
+  reviewed:  { label: "승인 완료", icon: '✅', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  rejected:  { label: "반려",      icon: '❌', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  draft:     { label: "기록 중",   icon: '✏️', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
 }
 
-const RISK_CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  urgent:  { label: "긴급", color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-  caution: { label: "주의", color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-  normal:  { label: "정상", color: '#059669', bg: '#f0fdf4', border: '#a7f3d0' },
+const RISK_CFG: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
+  urgent:  { label: "긴급", icon: '🔴', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+  caution: { label: "주의", icon: '🟠', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  normal:  { label: "정상", icon: '🟢', color: '#059669', bg: '#f0fdf4', border: '#a7f3d0' },
 }
 
 /* ── 타입 ─────────────────────────────────────────────── */
@@ -56,13 +56,14 @@ interface PatientRecordsResponse {
 }
 
 /* ── 배지 ────────────────────────────────────────────── */
-function Badge({ cfg }: { cfg: { label: string; color: string; bg: string; border: string } }) {
+function Badge({ cfg }: { cfg: { label: string; icon?: string; color: string; bg: string; border: string } }) {
   return (
     <span style={{
       fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 20,
       color: cfg.color, background: cfg.bg, border: `0.5px solid ${cfg.border}`,
-      display: 'inline-block', whiteSpace: 'nowrap',
+      display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
     }}>
+      {cfg.icon && <span style={{ fontSize: 10 }}>{cfg.icon}</span>}
       {cfg.label}
     </span>
   );
@@ -319,7 +320,7 @@ export default function PatientRecordsPage() {
                 {/* 행 */}
                 {rows.map((row, idx) => {
                   const riskCfg = row.risk_level ? RISK_CFG[row.risk_level] : null;
-                  const statusCfg = STATUS_CFG[row.status] ?? { label: row.status, color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' };
+                  const statusCfg = STATUS_CFG[row.status] ?? { label: row.status, icon: '', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' };
                   return (
                     <div
                       key={row.record_id}
