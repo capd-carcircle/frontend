@@ -444,7 +444,7 @@ export default function RecordListPage() {
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, height: 56,
         background: C.primary, display: 'flex', alignItems: 'center',
-        padding: '0 20px', zIndex: 100, boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
+        padding: '0 20px', zIndex: 100, boxShadow: '0 2px 8px rgba(123,107,181,0.25)',
       }}>
         {/* 좌측 로고 */}
         <div

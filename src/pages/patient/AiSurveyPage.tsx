@@ -488,7 +488,7 @@ export default function AiSurveyPage() {
         position: 'fixed', top: 0, left: 0, right: 0, height: 56,
         backgroundColor: 'var(--capd-primary)',
         display: 'flex', alignItems: 'center', padding: '0 20px',
-        zIndex: 100, boxShadow: '0 2px 8px rgba(27,80,138,0.25)',
+        zIndex: 100, boxShadow: '0 2px 8px rgba(123,107,181,0.25)',
       }}>
         <button
           style={{

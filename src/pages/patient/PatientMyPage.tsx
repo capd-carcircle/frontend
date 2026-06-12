@@ -12,7 +12,7 @@ import { apiFetch } from '../../api/apiFetch'
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 const C = {
-  primary:   '#534AB7',
+  primary:   'var(--capd-primary)',
   bg:        'var(--capd-bg)',
   border:    '#e5e7eb',
   text:      '#1a1a2e',
@@ -37,7 +37,7 @@ const dim: React.CSSProperties = {
 }
 const inp: React.CSSProperties = {
   flex: 1, margin: '6px 8px 6px 0', padding: '6px 10px',
-  border: `0.5px solid ${C.primary}`, borderRadius: 8,
+  border: `0.5px solid var(--capd-primary)`, borderRadius: 8,
   fontSize: 13, fontFamily: 'inherit', color: C.text,
   background: '#fff', outline: 'none', boxSizing: 'border-box' as const,
 }
@@ -48,7 +48,7 @@ function PwToggle({ active, onClick }: { active: boolean; onClick: () => void })
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', fontSize: 13, color: active || hovered ? '#534AB7' : '#6b7280', cursor: 'pointer', borderTop: '0.5px solid #e5e7eb' }}
+      style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', fontSize: 13, color: active || hovered ? 'var(--capd-primary)' : '#6b7280', cursor: 'pointer', borderTop: '0.5px solid #e5e7eb' }}
     >
       비밀번호 변경
     </div>
@@ -75,6 +75,7 @@ export default function PatientMyPage() {
   const [profile,  setProfile]  = useState<PatientProfile | null>(null)
   const [loading,  setLoading]  = useState(true)
   const [err,      setErr]      = useState('')
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 480)
 
   const [editMode,      setEditMode]      = useState(false)
   const [memo,          setMemo]          = useState('')
@@ -97,6 +98,12 @@ export default function PatientMyPage() {
   const [connectError,   setConnectError]   = useState('')
 
   const token = () => localStorage.getItem('access_token') ?? ''
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 480)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     apiFetch(`${API}/api/v1/auth/me/profile`, { headers: { Authorization: `Bearer ${token()}` } })
@@ -196,27 +203,55 @@ export default function PatientMyPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-      <header style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: C.primary, display: 'flex', alignItems: 'center', padding: '0 20px', zIndex: 100, boxShadow: '0 2px 8px rgba(83,74,183,0.25)' }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '5px 12px', fontFamily: 'inherit' }}>← 뒤로</button>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: 16, letterSpacing: '-0.03em', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>마이페이지</span>
+      {/* ── 헤더 — 다른 환자 페이지와 동일한 스타일 */}
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: 56,
+        backgroundColor: 'var(--capd-primary)',
+        display: 'flex', alignItems: 'center', padding: '0 20px',
+        zIndex: 100, boxShadow: '0 2px 8px rgba(123,107,181,0.25)',
+      }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            color: '#fff', fontSize: 14, cursor: 'pointer',
+            background: 'none', border: 'none', padding: '0 10px 0 0',
+            display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit',
+          }}
+        >
+          ← <span style={{ fontSize: 12 }}>뒤로</span>
+        </button>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <span style={{ color: '#fff', fontWeight: 900, fontSize: 14 }}>
+            {profile.name}
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginLeft: 6 }}>마이페이지</span>
+        </div>
+        <div style={{ width: 56 }} />
       </header>
 
-      <main style={{ paddingTop: 72, paddingBottom: 48, paddingLeft: 16, paddingRight: 16, maxWidth: 560, margin: '0 auto' }}>
+      <main style={{
+        paddingTop: 72,
+        paddingBottom: 48,
+        paddingLeft: isMobile ? 12 : 16,
+        paddingRight: isMobile ? 12 : 16,
+        maxWidth: 560,
+        margin: '0 auto',
+      }}>
 
         {/* ── 프로필 카드 */}
         <div style={card}>
           {/* 헤더 */}
-          <div style={{ background: '#fafafa', padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 14, borderBottom: `0.5px solid ${C.border}` }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 500, color: C.primary, flexShrink: 0 }}>
+          <div style={{ background: '#fafafa', padding: isMobile ? '14px 16px' : '18px 24px', display: 'flex', alignItems: 'center', gap: 14, borderBottom: `0.5px solid ${C.border}` }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 500, color: C.primary, flexShrink: 0 }}>
               {profile.name[0]}
             </div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 500, color: C.text }}>{profile.name}</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: C.text }}>{profile.name}</div>
               <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>CAPD 환자{age !== null ? ` · 만 ${age}세` : ''}</div>
             </div>
             <button
               onClick={editMode ? cancelEdit : openEdit}
-              style={{ marginLeft: 'auto', padding: '6px 16px', border: `0.5px solid ${editMode ? C.primary : C.border}`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 13, color: editMode ? C.primary : C.muted, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+              style={{ marginLeft: 'auto', padding: '6px 14px', border: `0.5px solid ${editMode ? 'var(--capd-primary)' : C.border}`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 13, color: editMode ? 'var(--capd-primary)' : C.muted, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
             >
               {editMode ? '✕ 닫기' : '✏ 수정'}
             </button>
@@ -265,7 +300,7 @@ export default function PatientMyPage() {
                 {formError && <p style={{ margin: 0, fontSize: 12, color: C.danger }}>{formError}</p>}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 13, color: C.muted, fontFamily: 'inherit' }}>취소</button>
-                  <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: 20, background: saving ? '#e5e7eb' : C.primary, color: saving ? C.muted : '#fff', fontSize: 13, fontWeight: 500, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                  <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: 20, background: saving ? '#e5e7eb' : 'var(--capd-primary)', color: saving ? C.muted : '#fff', fontSize: 13, fontWeight: 500, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit' }}>
                     {saving ? '저장 중...' : '저장'}
                   </button>
                 </div>
@@ -279,7 +314,7 @@ export default function PatientMyPage() {
           <div style={{ padding: '12px 24px', borderBottom: `0.5px solid ${C.border}` }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>담당 의사</span>
           </div>
-          <div style={{ padding: '16px 24px' }}>
+          <div style={{ padding: isMobile ? '14px 16px' : '16px 24px' }}>
             {profile.doctor_name && !pendingReq && (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
@@ -311,7 +346,7 @@ export default function PatientMyPage() {
             {!profile.doctor_name && !pendingReq && !connectMode && (
               <>
                 <p style={{ margin: '0 0 12px', fontSize: 13, color: C.muted, lineHeight: 1.6 }}>담당 의사가 없습니다. 연결하면 기록 제출 및 AI 분석을 이용할 수 있습니다.</p>
-                <button onClick={() => setConnectMode(true)} style={{ width: '100%', padding: '9px', border: `0.5px solid ${C.primary}`, borderRadius: 20, background: 'transparent', fontSize: 13, color: C.primary, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                <button onClick={() => setConnectMode(true)} style={{ width: '100%', padding: '9px', border: `0.5px solid var(--capd-primary)`, borderRadius: 20, background: 'transparent', fontSize: 13, color: 'var(--capd-primary)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
                   + 담당 의사 연결 신청
                 </button>
               </>
@@ -329,7 +364,7 @@ export default function PatientMyPage() {
                 {connectError && <p style={{ margin: 0, fontSize: 12, color: C.danger }}>{connectError}</p>}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => { setConnectMode(false); setConnectError('') }} style={{ flex: 1, padding: '9px', border: `0.5px solid ${C.border}`, borderRadius: 20, background: 'transparent', fontSize: 13, color: C.muted, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
-                  <button onClick={handleConnectRequest} disabled={connectLoading || !selDoctor} style={{ flex: 1, padding: '9px', border: 'none', borderRadius: 20, background: (connectLoading || !selDoctor) ? '#e5e7eb' : C.primary, color: (connectLoading || !selDoctor) ? C.muted : '#fff', fontSize: 13, cursor: (connectLoading || !selDoctor) ? 'default' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                  <button onClick={handleConnectRequest} disabled={connectLoading || !selDoctor} style={{ flex: 1, padding: '9px', border: 'none', borderRadius: 20, background: (connectLoading || !selDoctor) ? '#e5e7eb' : 'var(--capd-primary)', color: (connectLoading || !selDoctor) ? C.muted : '#fff', fontSize: 13, cursor: (connectLoading || !selDoctor) ? 'default' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
                     {connectLoading ? '신청 중...' : '연결 신청'}
                   </button>
                 </div>
