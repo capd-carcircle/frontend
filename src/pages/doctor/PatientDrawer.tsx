@@ -351,8 +351,10 @@ body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px
 .risk-card.caution{background:#fffbeb;color:#d97706}
 .risk-card.normal{background:#f0fdf4;color:#16a34a}
 .risk-card.none{background:#f3f4f6;color:#6b7280}
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.charts{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px}
+@media(max-width:700px){.charts{grid-template-columns:1fr}}
 .chart-box{border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa}
+.chart-box canvas{height:440px!important}
 .chart-label{font-size:17px;font-weight:700;color:#6b7280;margin-bottom:10px;letter-spacing:.3px}
 canvas{display:block}
 .chart-print-img{display:none}
@@ -370,7 +372,7 @@ tr:nth-child(even) td{background:#f9fafb}
 @media print{
   body{margin:12px 16px}
   .print-bar{display:none}
-  .charts{grid-template-columns:1fr 1fr}
+  .charts{grid-template-columns:repeat(2,1fr)!important}
   .chart-box{break-inside:avoid}
   canvas{display:none!important}
   .chart-print-img{display:block!important;max-width:100%;height:auto!important}
@@ -496,16 +498,13 @@ Chart.register({
   }
 });
 
-// ─── 차트 생성 → 즉시 PNG 교체 ────────────────────────────
-// window.load 이후 실행 → CDN 스크립트 완전 로드 보장
-// animation:false → new Chart() 반환 시점에 이미 그려짐
-// replaceChild → 캔버스가 DOM에서 완전 제거 → print 왜곡 원천 차단
 window.addEventListener('load', function() {
   var labels = _chartData.labels;
 
   var commonOpts = {
-    responsive: false,
-    animation: false,
+    responsive: true,         // 창 크기에 따라 동적으로 리사이즈
+    maintainAspectRatio: false,
+    animation: { duration: 400 },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -539,20 +538,14 @@ window.addEventListener('load', function() {
         grid: { color: '#f0f0f0' }
       }
     },
-    elements: { point: { radius: 4 }, line: { tension: 0 } }
+    elements: { point: { radius: 4, hitRadius: 12, hoverRadius: 7 }, line: { tension: 0 } }
   };
+
+  var _charts = {};
 
   function mkChart(id, label, vals, color, unit) {
     var canvas = document.getElementById(id);
     if (!canvas) return;
-
-    // 컨테이너 실제 너비로 캔버스 픽셀 크기 고정
-    var W = canvas.parentNode.clientWidth || 520;
-    var H = 440;
-    canvas.width  = W;
-    canvas.height = H;
-    canvas.style.width  = W + 'px';
-    canvas.style.height = H + 'px';
 
     var points = labels.map(function(d,i){
       return (vals[i]!==null&&vals[i]!==undefined) ? {x:d,y:vals[i]} : null;
@@ -573,14 +566,11 @@ window.addEventListener('load', function() {
       });
     }
 
-    // 차트 그리기 (animation:false → 이 줄에서 즉시 완료)
-    new Chart(canvas, { type:'line', data:{datasets:datasets}, options:commonOpts });
+    _charts[id] = new Chart(canvas, { type:'line', data:{datasets:datasets}, options:commonOpts });
 
-    // PNG는 프린트 전용으로 별도 생성 (캔버스는 화면에서 그대로 유지)
-    var img = new Image();
-    img.src = canvas.toDataURL('image/png');
+    // 프린트용 PNG placeholder (실제 src는 beforeprint에서 갱신)
+    var img = document.createElement('img');
     img.className = 'chart-print-img';
-    img.style.cssText = 'width:'+W+'px;height:'+H+'px;max-width:100%';
     canvas.parentNode.insertBefore(img, canvas.nextSibling);
   }
 
@@ -588,6 +578,18 @@ window.addEventListener('load', function() {
   mkChart('chartBP',      '수축기혈압', _chartData.systolic, '#dc2626', 'mmHg');
   mkChart('chartUF',      '제수량',   _chartData.uf,       '#2563eb', 'mL');
   mkChart('chartGlucose', '공복혈당', _chartData.glucose,  '#d97706', 'mg/dL');
+
+  // 프린트 직전 현재 캔버스 상태를 PNG로 갱신 → 왜곡 없이 그대로 출력
+  window.addEventListener('beforeprint', function() {
+    document.querySelectorAll('.chart-box').forEach(function(box) {
+      var canvas = box.querySelector('canvas');
+      var img = box.querySelector('.chart-print-img');
+      if (!canvas || !img) return;
+      img.src = canvas.toDataURL('image/png');
+      img.style.width  = canvas.offsetWidth  + 'px';
+      img.style.height = canvas.offsetHeight + 'px';
+    });
+  });
 });
 <\/script>
 </body></html>`
