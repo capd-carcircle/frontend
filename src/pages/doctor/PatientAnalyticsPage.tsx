@@ -99,10 +99,10 @@ const CORR_INTERPRETATION_KO: Record<string, string> = {
 };
 function corrLabel(interpretation: string) { return CORR_INTERPRETATION_KO[interpretation] ?? interpretation; }
 
-const ANOMALY_CFG: Record<string, { color: string; bg: string; label: string }> = {
-  strong_anomaly: { color: C.danger,  bg: C.dangerLight,  label: "강한 이상" },
-  mild_anomaly:   { color: C.warning, bg: C.warningLight, label: "경미한 이상" },
-  normal:         { color: C.success, bg: C.successLight, label: "정상" },
+const ANOMALY_CFG: Record<string, { color: string; bg: string; label: string; icon: string }> = {
+  strong_anomaly: { color: C.danger,  bg: C.dangerLight,  label: "강한 이상",   icon: "🔴" },
+  mild_anomaly:   { color: C.warning, bg: C.warningLight, label: "경미한 이상", icon: "🟠" },
+  normal:         { color: C.success, bg: C.successLight, label: "정상",       icon: "🟢" },
 };
 
 /* ── 타입 ─────────────────────────────────────────────── */
@@ -240,6 +240,7 @@ export default function PatientAnalyticsPage() {
   const [error, setError]     = useState("");
   const [notFound, setNotFound] = useState(false);
   const [showAllCorr, setShowAllCorr] = useState(false);
+  const [corrCols, setCorrCols] = useState<1 | 2>(2);
   const [expandedAttr, setExpandedAttr] = useState<string | null>(null);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -473,8 +474,8 @@ export default function PatientAnalyticsPage() {
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
-                gap: 10,
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+                gap: 12,
               }}>
                 {anomalyResults
                   .slice()
@@ -486,15 +487,18 @@ export default function PatientAnalyticsPage() {
                     const cfg = ANOMALY_CFG[level] ?? ANOMALY_CFG.normal;
                     return (
                       <div key={attr} style={{
-                        display: 'flex', flexDirection: 'column', gap: 6,
+                        display: 'flex', flexDirection: 'column', gap: 8,
                         padding: '12px 14px', borderRadius: 10, minWidth: 0,
-                        background: entry.is_anomaly ? cfg.bg : C.bg,
+                        background: entry.is_anomaly ? cfg.bg : C.white,
                         border: `0.5px solid ${entry.is_anomaly ? cfg.color + '33' : C.border}`,
                       }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {attrLabel(attr)}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                            <span style={{ fontSize: 14, flexShrink: 0 }}>{cfg.icon}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {attrLabel(attr)}
+                            </span>
+                          </div>
                           {entry.sufficient_data ? (
                             <span style={{
                               flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
@@ -506,10 +510,30 @@ export default function PatientAnalyticsPage() {
                             <span style={{ flexShrink: 0, fontSize: 10.5, color: C.textLight }}>데이터 부족</span>
                           )}
                         </div>
-                        {entry.sufficient_data && entry.z_score_30d != null && (
-                          <span style={{ fontSize: 10.5, color: C.textLight, fontWeight: 600 }}>z = {entry.z_score_30d}</span>
+
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.textLight, letterSpacing: '0.03em' }}>오늘 값</div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{entry.today_value}</div>
+                        </div>
+
+                        {entry.sufficient_data && (entry.z_score_30d != null || entry.robust_z_score != null) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+                            {entry.z_score_30d != null && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                <span style={{ color: C.textMuted, fontWeight: 600 }}>z-score</span>
+                                <span style={{ color: C.text, fontWeight: 700 }}>{entry.z_score_30d}</span>
+                              </div>
+                            )}
+                            {entry.robust_z_score != null && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                <span style={{ color: C.textMuted, fontWeight: 600 }}>robust z</span>
+                                <span style={{ color: C.text, fontWeight: 700 }}>{entry.robust_z_score}</span>
+                              </div>
+                            )}
+                          </div>
                         )}
-                        <span style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{entry.statement}</span>
+
+                        <span style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>{entry.statement}</span>
                       </div>
                     );
                   })}
@@ -525,26 +549,50 @@ export default function PatientAnalyticsPage() {
               </div>
             ) : (
               <>
+                {!isMobile && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                    <button
+                      onClick={() => setCorrCols((c) => (c === 2 ? 1 : 2))}
+                      style={{
+                        background: 'none', border: `0.5px solid ${C.border}`, borderRadius: 20,
+                        padding: '4px 12px', fontSize: 11.5, fontWeight: 600, color: C.textMuted,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      {corrCols === 2 ? '1열로 보기' : '2열로 보기'}
+                    </button>
+                  </div>
+                )}
                 {strongCorrPairs.length === 0 && (
                   <div style={{ fontSize: 12, color: C.textMuted, padding: '4px 0 10px' }}>
                     유의미한(|r| ≥ 0.5) 상관관계는 없어요. 약한 상관관계 {weakCorrPairs.length}개는 아래에서 확인할 수 있어요.
                   </div>
                 )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : `repeat(${corrCols}, 1fr)`,
+                  gap: 12,
+                }}>
                   {strongCorrPairs.map((p, i) => {
                     const pct = Math.round(Math.abs(p.correlation) * 100);
                     const barColor = p.direction === 'positive' ? C.primary : C.danger;
                     return (
-                      <div key={i}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                          <span style={{ color: C.text, fontWeight: 600 }}>
-                            {attrLabel(p.attr1)} ↔ {attrLabel(p.attr2)}
+                      <div key={i} style={{
+                        display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0,
+                        padding: '12px 14px', borderRadius: 10,
+                        background: C.bg, border: `0.5px solid ${C.border}`,
+                        ...(corrCols === 1 ? { maxWidth: 560 } : {}),
+                      }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                          {attrLabel(p.attr1)} ↔ {attrLabel(p.attr2)}
+                        </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 11.5 }}>
+                          <span style={{ color: C.textMuted, fontWeight: 600 }}>
+                            {corrLabel(p.interpretation)} · {p.direction === 'positive' ? '양의 상관' : '음의 상관'}
                           </span>
-                          <span style={{ color: C.textMuted }}>
-                            {p.correlation} ({corrLabel(p.interpretation)}, {p.direction === 'positive' ? '양의 상관' : '음의 상관'})
-                          </span>
+                          <span style={{ color: C.text, fontWeight: 800 }}>r = {p.correlation}</span>
                         </div>
-                        <div style={{ background: C.bg, borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                        <div style={{ background: C.white, borderRadius: 6, height: 8, overflow: 'hidden' }}>
                           <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 6 }} />
                         </div>
                       </div>
@@ -566,21 +614,31 @@ export default function PatientAnalyticsPage() {
                     </button>
 
                     {showAllCorr && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, opacity: 0.7 }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? '1fr' : `repeat(${corrCols}, 1fr)`,
+                        gap: 12, marginTop: 10, opacity: 0.7,
+                      }}>
                         {weakCorrPairs.map((p, i) => {
                           const pct = Math.round(Math.abs(p.correlation) * 100);
                           const barColor = p.direction === 'positive' ? C.primary : C.danger;
                           return (
-                            <div key={i}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                                <span style={{ color: C.text, fontWeight: 600 }}>
-                                  {attrLabel(p.attr1)} ↔ {attrLabel(p.attr2)}
+                            <div key={i} style={{
+                              display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0,
+                              padding: '12px 14px', borderRadius: 10,
+                              background: C.bg, border: `0.5px solid ${C.border}`,
+                              ...(corrCols === 1 ? { maxWidth: 560 } : {}),
+                            }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                                {attrLabel(p.attr1)} ↔ {attrLabel(p.attr2)}
+                              </span>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 11.5 }}>
+                                <span style={{ color: C.textMuted, fontWeight: 600 }}>
+                                  {corrLabel(p.interpretation)} · {p.direction === 'positive' ? '양의 상관' : '음의 상관'}
                                 </span>
-                                <span style={{ color: C.textMuted }}>
-                                  {p.correlation} ({corrLabel(p.interpretation)}, {p.direction === 'positive' ? '양의 상관' : '음의 상관'})
-                                </span>
+                                <span style={{ color: C.text, fontWeight: 800 }}>r = {p.correlation}</span>
                               </div>
-                              <div style={{ background: C.bg, borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                              <div style={{ background: C.white, borderRadius: 6, height: 8, overflow: 'hidden' }}>
                                 <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 6 }} />
                               </div>
                             </div>
