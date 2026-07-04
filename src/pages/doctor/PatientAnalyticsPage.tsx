@@ -1,11 +1,10 @@
 /**
- * PatientAnalyticsPage — 환자 분석 리포트 (AB180 전환설계 9-2, 4단계)
+ * PatientAnalyticsPage — 환자 분석 리포트
  *
  * 데이터 소스: backend 온디맨드 analytics 엔드포인트
  *   GET /api/v1/analytics/patients/{patientId}?window=7|30|90
- * (설계상 최종 소스는 capd-analytics(Kotlin, Gold 읽기) 예정이지만 아직 미신설 —
- *  지금은 backend 온디맨드 계산 결과를 그대로 사용. 6단계에서 Kotlin 이관 시
- *  이 화면의 API 호출 대상만 바뀌고 화면 구조는 그대로 재사용 가능하도록 설계.)
+ * (지금은 backend 온디맨드 계산 결과를 그대로 사용. 추후 별도 서빙 서비스로
+ *  이관하더라도 이 화면의 API 호출 대상만 바뀌고 화면 구조는 그대로 재사용 가능하도록 설계.)
  *
  * 섹션: ① 헤더(환자정보+기간선택) ② 추세 요약 카드 ③ 이상 탐지 ④ 요인 분석(상관관계)
  *       ⑤ 기간 비교(7일 대비 요약)
