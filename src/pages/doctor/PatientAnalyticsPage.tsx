@@ -10,7 +10,7 @@
  * 섹션: ① 헤더(환자정보+기간선택) ② 추세 요약 카드 ③ 이상 탐지 ④ 요인 분석(상관관계)
  *       ⑤ 기간 비교(7일 대비 요약)
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
 import useAuthStore from "../../store/authStore";
 import { calcAge, patientLabel } from "../../utils/helpers";
@@ -112,6 +112,7 @@ interface CorrelationPair {
   attr1: string; attr2: string; correlation: number;
   direction: 'positive' | 'negative'; interpretation: string; statement: string;
 }
+interface DailyPoint { date: string; value: number }
 interface AnalyticsResponse {
   patient_id: number; patient_name: string; record_date: string;
   window_days: number; source: string;
@@ -119,7 +120,72 @@ interface AnalyticsResponse {
   anomaly_detection:      { results: Record<string, AnomalyEntry> };
   attribute_correlation:  { results: CorrelationPair[]; note?: string };
   eda:                    { results: Record<string, any> };
+  daily_series?:          Record<string, DailyPoint[]>;
   has_anomaly: boolean; anomaly_attrs: string[];
+}
+
+/* ── Chart.js 동적 로더 (CDN, exportRecordsPdf.ts와 동일 버전 재사용) ── */
+let chartJsPromise: Promise<any> | null = null;
+function loadChartJs(): Promise<any> {
+  const w = window as any;
+  if (w.Chart) return Promise.resolve(w.Chart);
+  if (chartJsPromise) return chartJsPromise;
+  chartJsPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
+    script.async = true;
+    script.onload = () => resolve((window as any).Chart);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return chartJsPromise;
+}
+
+/* ── 추세 카드 미니 차트 — 최근 N일 값 + 오늘 이상치 마커 ── */
+function MiniTrendChart({ series, isAnomalyToday }: { series: DailyPoint[]; isAnomalyToday: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadChartJs().then((Chart) => {
+      if (cancelled || !canvasRef.current) return;
+      if (chartRef.current) chartRef.current.destroy();
+      const color = "#7c3aed";
+      const labels = series.map((p) => p.date.slice(5));
+      const values = series.map((p) => p.value);
+      const lastIdx = series.length - 1;
+      const pointColors = series.map((_, i) => (i === lastIdx && isAnomalyToday ? "#dc2626" : color));
+      const pointRadii  = series.map((_, i) => (i === lastIdx && isAnomalyToday ? 5 : 1.5));
+      chartRef.current = new Chart(canvasRef.current, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            data: values, borderColor: color, backgroundColor: color + "1a",
+            fill: true, spanGaps: true, borderWidth: 1.5,
+            pointBackgroundColor: pointColors, pointRadius: pointRadii,
+            pointHoverRadius: pointRadii.map((r) => r + 2),
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { font: { size: 8 }, maxTicksLimit: 4, autoSkip: true }, grid: { display: false } },
+            y: { ticks: { font: { size: 8 } }, grid: { color: "#f0f0f0" } },
+          },
+          elements: { line: { tension: 0.3 } },
+        },
+      });
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+    };
+  }, [series, isAnomalyToday]);
+
+  return <canvas ref={canvasRef} style={{ width: "100%", height: 56, display: "block" }} />;
 }
 
 /* ── 공통 카드 셸 ─────────────────────────────────────── */
@@ -277,26 +343,33 @@ export default function PatientAnalyticsPage() {
                 gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))',
                 gap: 12,
               }}>
-                {trendResults.map(([attr, entry]) => (
-                  <div key={attr} style={{
-                    border: `0.5px solid ${C.border}`, borderRadius: 10, padding: '12px 14px',
-                    display: 'flex', flexDirection: 'column', gap: 6,
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{attrLabel(attr)}</span>
-                      <TrendBadge trend={entry.trend_summary} />
-                    </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>
-                      {entry.today_value} <span style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>{entry.unit}</span>
-                    </div>
-                    {entry.percentage_change_from_7d_mean != null && (
-                      <div style={{ fontSize: 11, color: C.textMuted }}>
-                        7일 평균 대비 {entry.percentage_change_from_7d_mean > 0 ? '+' : ''}{entry.percentage_change_from_7d_mean}%
+                {trendResults.map(([attr, entry]) => {
+                  const series = data.daily_series?.[attr];
+                  const isAnomalyToday = !!data.anomaly_detection.results[attr]?.is_anomaly;
+                  return (
+                    <div key={attr} style={{
+                      border: `0.5px solid ${C.border}`, borderRadius: 10, padding: '12px 14px',
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{attrLabel(attr)}</span>
+                        <TrendBadge trend={entry.trend_summary} />
                       </div>
-                    )}
-                    <div style={{ fontSize: 11, color: C.textLight, lineHeight: 1.5 }}>{entry.statement}</div>
-                  </div>
-                ))}
+                      <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>
+                        {entry.today_value} <span style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>{entry.unit}</span>
+                      </div>
+                      {entry.percentage_change_from_7d_mean != null && (
+                        <div style={{ fontSize: 11, color: C.textMuted }}>
+                          7일 평균 대비 {entry.percentage_change_from_7d_mean > 0 ? '+' : ''}{entry.percentage_change_from_7d_mean}%
+                        </div>
+                      )}
+                      {series && series.length >= 2 && (
+                        <MiniTrendChart series={series} isAnomalyToday={isAnomalyToday} />
+                      )}
+                      <div style={{ fontSize: 11, color: C.textLight, lineHeight: 1.5 }}>{entry.statement}</div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </SectionCard>
