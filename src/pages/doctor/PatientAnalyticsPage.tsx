@@ -78,13 +78,13 @@ function TrendBadge({ trend }: { trend: string }) {
 }
 
 /* ── 추세 카드용 "라벨 | 값 | 증감" 한 줄 — 오늘 값과 헷갈리지 않게 항상 라벨 표시 ── */
-function CompareRow({ label, mean, diff, pct, unit }: {
-  label: string; mean?: number; diff?: number; pct?: number | null; unit: string;
+function CompareRow({ label, mean, diff, pct, unit, fontSize = 11 }: {
+  label: string; mean?: number; diff?: number; pct?: number | null; unit: string; fontSize?: number;
 }) {
   if (mean == null) return null;
   const deltaColor = diff == null || diff === 0 ? C.textLight : diff > 0 ? C.warning : C.primary;
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 11, gap: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize, gap: 6 }}>
       <span style={{ color: C.textMuted, fontWeight: 600, flexShrink: 0 }}>{label}</span>
       <span style={{ color: C.text, fontWeight: 600 }}>{mean}{unit}</span>
       {diff != null && (
@@ -156,7 +156,7 @@ function loadChartJs(): Promise<any> {
 }
 
 /* ── 추세 카드 미니 차트 — 최근 N일 값 + 오늘 이상치 마커 ── */
-function MiniTrendChart({ series, isAnomalyToday }: { series: DailyPoint[]; isAnomalyToday: boolean }) {
+function MiniTrendChart({ series, isAnomalyToday, height = 56 }: { series: DailyPoint[]; isAnomalyToday: boolean; height?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<any>(null);
 
@@ -170,14 +170,14 @@ function MiniTrendChart({ series, isAnomalyToday }: { series: DailyPoint[]; isAn
       const values = series.map((p) => p.value);
       const lastIdx = series.length - 1;
       const pointColors = series.map((_, i) => (i === lastIdx && isAnomalyToday ? "#dc2626" : color));
-      const pointRadii  = series.map((_, i) => (i === lastIdx && isAnomalyToday ? 5 : 1.5));
+      const pointRadii  = series.map((_, i) => (i === lastIdx && isAnomalyToday ? (height > 56 ? 6 : 5) : (height > 56 ? 2.5 : 1.5)));
       chartRef.current = new Chart(canvasRef.current, {
         type: "line",
         data: {
           labels,
           datasets: [{
             data: values, borderColor: color, backgroundColor: color + "1a",
-            fill: true, spanGaps: true, borderWidth: 1.5,
+            fill: true, spanGaps: true, borderWidth: height > 56 ? 2 : 1.5,
             pointBackgroundColor: pointColors, pointRadius: pointRadii,
             pointHoverRadius: pointRadii.map((r) => r + 2),
           }],
@@ -186,8 +186,8 @@ function MiniTrendChart({ series, isAnomalyToday }: { series: DailyPoint[]; isAn
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { font: { size: 8 }, maxTicksLimit: 4, autoSkip: true }, grid: { display: false } },
-            y: { ticks: { font: { size: 8 } }, grid: { color: "#f0f0f0" } },
+            x: { ticks: { font: { size: height > 56 ? 11 : 8 }, maxTicksLimit: height > 56 ? 8 : 4, autoSkip: true }, grid: { display: false } },
+            y: { ticks: { font: { size: height > 56 ? 11 : 8 } }, grid: { color: "#f0f0f0" } },
           },
           elements: { line: { tension: 0.3 } },
         },
@@ -197,14 +197,14 @@ function MiniTrendChart({ series, isAnomalyToday }: { series: DailyPoint[]; isAn
       cancelled = true;
       if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
     };
-  }, [series, isAnomalyToday]);
+  }, [series, isAnomalyToday, height]);
 
   // Chart.js의 responsive:true는 캔버스의 "부모 엘리먼트" 크기를 기준으로 리사이즈한다.
   // 고정 높이 래퍼 없이 캔버스를 flex 컬럼 안에 바로 두면, 부모 높이가 캔버스 내용에
   // 따라 같이 늘어나면서 리사이즈 옵저버가 서로를 계속 키우는 무한 성장 루프가 생김
   // (세로로 끝없이 늘어나는 그래프 버그의 원인). 그래서 높이가 고정된 relative 래퍼로 감쌈.
   return (
-    <div style={{ position: "relative", width: "100%", height: 56 }}>
+    <div style={{ position: "relative", width: "100%", height }}>
       <canvas ref={canvasRef} />
     </div>
   );
@@ -239,6 +239,7 @@ export default function PatientAnalyticsPage() {
   const [error, setError]     = useState("");
   const [notFound, setNotFound] = useState(false);
   const [showAllCorr, setShowAllCorr] = useState(false);
+  const [expandedAttr, setExpandedAttr] = useState<string | null>(null);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -279,7 +280,12 @@ export default function PatientAnalyticsPage() {
   const strongCorrPairs = corrPairs.filter((p) => p.interpretation !== 'weak');
   const weakCorrPairs = corrPairs.filter((p) => p.interpretation === 'weak');
 
+  const expandedEntry = expandedAttr && data ? data.trend_analysis.results[expandedAttr] : null;
+  const expandedSeries = expandedAttr && data ? data.daily_series?.[expandedAttr] : null;
+  const expandedIsAnomaly = expandedAttr && data ? !!data.anomaly_detection.results[expandedAttr]?.is_anomaly : false;
+
   return (
+    <>
     <main style={{
       flex: 1, overflowY: "auto",
       padding: isMobile ? '16px' : '28px 32px',
@@ -390,7 +396,7 @@ export default function PatientAnalyticsPage() {
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
                 gap: 12,
               }}>
                 {trendResults.map(([attr, entry]) => {
@@ -399,11 +405,25 @@ export default function PatientAnalyticsPage() {
                   return (
                     <div key={attr} style={{
                       border: `0.5px solid ${C.border}`, borderRadius: 10, padding: '12px 14px',
-                      display: 'flex', flexDirection: 'column', gap: 8,
+                      display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0,
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{attrLabel(attr)}</span>
-                        <TrendBadge trend={entry.trend_summary} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attrLabel(attr)}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          <TrendBadge trend={entry.trend_summary} />
+                          <button
+                            onClick={() => setExpandedAttr(attr)}
+                            title="크게 보기"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              width: 20, height: 20, borderRadius: 6, border: `0.5px solid ${C.border}`,
+                              background: C.white, color: C.textMuted, fontSize: 11,
+                              cursor: 'pointer', padding: 0, flexShrink: 0,
+                            }}
+                          >
+                            ⛶
+                          </button>
+                        </div>
                       </div>
 
                       <div>
@@ -566,5 +586,67 @@ export default function PatientAnalyticsPage() {
         </>
       )}
     </main>
+
+    {/* ── 추세 카드 확대 보기 모달 ── */}
+    {expandedAttr && expandedEntry && (
+      <div
+        onClick={() => setExpandedAttr(null)}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 500,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: C.white, borderRadius: 16, padding: '24px 28px',
+            width: 'min(560px, 100%)', maxHeight: '90vh', overflowY: 'auto',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: C.text }}>{attrLabel(expandedAttr)}</h3>
+              <TrendBadge trend={expandedEntry.trend_summary} />
+            </div>
+            <button
+              onClick={() => setExpandedAttr(null)}
+              style={{
+                background: 'none', border: `0.5px solid ${C.border}`, borderRadius: 8,
+                padding: '5px 12px', cursor: 'pointer', fontSize: 13, color: C.textMuted, fontFamily: 'inherit',
+              }}
+            >
+              ✕ 닫기
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.textLight, letterSpacing: '0.03em' }}>오늘</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: C.text }}>
+              {expandedEntry.today_value} <span style={{ fontSize: 15, fontWeight: 500, color: C.textMuted }}>{expandedEntry.unit}</span>
+            </div>
+          </div>
+
+          {(expandedEntry.previous_7d_mean != null || expandedEntry.previous_30d_mean != null) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, marginBottom: 16 }}>
+              <CompareRow
+                label="7일 평균" unit={expandedEntry.unit} fontSize={14}
+                mean={expandedEntry.previous_7d_mean} diff={expandedEntry.difference_from_7d_mean}
+                pct={expandedEntry.percentage_change_from_7d_mean}
+              />
+              <CompareRow
+                label="30일 평균" unit={expandedEntry.unit} fontSize={14}
+                mean={expandedEntry.previous_30d_mean} diff={expandedEntry.difference_from_30d_mean}
+              />
+            </div>
+          )}
+
+          {expandedSeries && expandedSeries.length >= 2 && (
+            <MiniTrendChart series={expandedSeries} isAnomalyToday={expandedIsAnomaly} height={220} />
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
