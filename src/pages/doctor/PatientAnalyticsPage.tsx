@@ -185,7 +185,15 @@ function MiniTrendChart({ series, isAnomalyToday }: { series: DailyPoint[]; isAn
     };
   }, [series, isAnomalyToday]);
 
-  return <canvas ref={canvasRef} style={{ width: "100%", height: 56, display: "block" }} />;
+  // Chart.js의 responsive:true는 캔버스의 "부모 엘리먼트" 크기를 기준으로 리사이즈한다.
+  // 고정 높이 래퍼 없이 캔버스를 flex 컬럼 안에 바로 두면, 부모 높이가 캔버스 내용에
+  // 따라 같이 늘어나면서 리사이즈 옵저버가 서로를 계속 키우는 무한 성장 루프가 생김
+  // (세로로 끝없이 늘어나는 그래프 버그의 원인). 그래서 높이가 고정된 relative 래퍼로 감쌈.
+  return (
+    <div style={{ position: "relative", width: "100%", height: 56 }}>
+      <canvas ref={canvasRef} />
+    </div>
+  );
 }
 
 /* ── 공통 카드 셸 ─────────────────────────────────────── */
