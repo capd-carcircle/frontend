@@ -46,10 +46,8 @@ const ATTR_LABEL: Record<string, string> = {
   exchange_count:           "교환 횟수",
   dwell_mean_minutes:       "저류 시간(평균)",
   concentration_max:        "최고 농도",
-  calculated_uf_sum_g:      "계산 제수량 합",
-  recorded_uf_sum_g:        "기록 제수량 합",
+  calculated_uf_sum_g:      "제수량 합",
   infused_sum_g:            "주입량 합",
-  reported_total_uf_g:      "보고 총 제수량",
 };
 
 function attrLabel(attr: string) { return ATTR_LABEL[attr] ?? attr; }
@@ -169,15 +167,18 @@ function MiniTrendChart({ series, isAnomalyToday, height = 56 }: { series: Daily
       const labels = series.map((p) => p.date.slice(5));
       const values = series.map((p) => p.value);
       const lastIdx = series.length - 1;
+      // 220(확대 모달)일 때만 "큰" 스타일, 그 외(56 기본/80 카드 내)는 높이에 따라 살짝만 차등
+      const isModal = height >= 150;
+      const tickFont = isModal ? 11 : height > 56 ? 9 : 8;
       const pointColors = series.map((_, i) => (i === lastIdx && isAnomalyToday ? "#dc2626" : color));
-      const pointRadii  = series.map((_, i) => (i === lastIdx && isAnomalyToday ? (height > 56 ? 6 : 5) : (height > 56 ? 2.5 : 1.5)));
+      const pointRadii  = series.map((_, i) => (i === lastIdx && isAnomalyToday ? (isModal ? 6 : 4) : (isModal ? 2.5 : 1.8)));
       chartRef.current = new Chart(canvasRef.current, {
         type: "line",
         data: {
           labels,
           datasets: [{
             data: values, borderColor: color, backgroundColor: color + "1a",
-            fill: true, spanGaps: true, borderWidth: height > 56 ? 2 : 1.5,
+            fill: true, spanGaps: true, borderWidth: isModal ? 2 : 1.5,
             pointBackgroundColor: pointColors, pointRadius: pointRadii,
             pointHoverRadius: pointRadii.map((r) => r + 2),
           }],
@@ -186,8 +187,8 @@ function MiniTrendChart({ series, isAnomalyToday, height = 56 }: { series: Daily
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { font: { size: height > 56 ? 11 : 8 }, maxTicksLimit: height > 56 ? 8 : 4, autoSkip: true }, grid: { display: false } },
-            y: { ticks: { font: { size: height > 56 ? 11 : 8 } }, grid: { color: "#f0f0f0" } },
+            x: { ticks: { font: { size: tickFont }, maxTicksLimit: isModal ? 8 : 5, autoSkip: true }, grid: { display: false } },
+            y: { ticks: { font: { size: tickFont } }, grid: { color: "#f0f0f0" } },
           },
           elements: { line: { tension: 0.3 } },
         },
@@ -448,7 +449,7 @@ export default function PatientAnalyticsPage() {
                       )}
 
                       {series && series.length >= 2 && (
-                        <MiniTrendChart series={series} isAnomalyToday={isAnomalyToday} />
+                        <MiniTrendChart series={series} isAnomalyToday={isAnomalyToday} height={80} />
                       )}
                     </div>
                   );
@@ -470,7 +471,11 @@ export default function PatientAnalyticsPage() {
             {anomalyResults.length === 0 ? (
               <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>표시할 이상탐지 데이터가 없습니다.</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: 10,
+              }}>
                 {anomalyResults
                   .slice()
                   .sort((a, b) => Number(!!b[1].is_anomaly) - Number(!!a[1].is_anomaly))
@@ -481,25 +486,30 @@ export default function PatientAnalyticsPage() {
                     const cfg = ANOMALY_CFG[level] ?? ANOMALY_CFG.normal;
                     return (
                       <div key={attr} style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                        padding: '10px 14px', borderRadius: 10,
+                        display: 'flex', flexDirection: 'column', gap: 6,
+                        padding: '12px 14px', borderRadius: 10, minWidth: 0,
                         background: entry.is_anomaly ? cfg.bg : C.bg,
                         border: `0.5px solid ${entry.is_anomaly ? cfg.color + '33' : C.border}`,
                       }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{attrLabel(attr)}</span>
-                          <span style={{ fontSize: 11, color: C.textMuted }}>{entry.statement}</span>
-                        </div>
-                        {entry.sufficient_data ? (
-                          <span style={{
-                            flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
-                            color: cfg.color, background: cfg.bg,
-                          }}>
-                            {cfg.label}{entry.z_score_30d != null ? ` (z=${entry.z_score_30d})` : ''}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {attrLabel(attr)}
                           </span>
-                        ) : (
-                          <span style={{ flexShrink: 0, fontSize: 11, color: C.textLight }}>데이터 부족</span>
+                          {entry.sufficient_data ? (
+                            <span style={{
+                              flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
+                              color: cfg.color, background: C.white,
+                            }}>
+                              {cfg.label}
+                            </span>
+                          ) : (
+                            <span style={{ flexShrink: 0, fontSize: 10.5, color: C.textLight }}>데이터 부족</span>
+                          )}
+                        </div>
+                        {entry.sufficient_data && entry.z_score_30d != null && (
+                          <span style={{ fontSize: 10.5, color: C.textLight, fontWeight: 600 }}>z = {entry.z_score_30d}</span>
                         )}
+                        <span style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{entry.statement}</span>
                       </div>
                     );
                   })}
