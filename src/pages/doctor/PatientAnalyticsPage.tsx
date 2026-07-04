@@ -6,8 +6,8 @@
  * (지금은 backend 온디맨드 계산 결과를 그대로 사용. 추후 별도 서빙 서비스로
  *  이관하더라도 이 화면의 API 호출 대상만 바뀌고 화면 구조는 그대로 재사용 가능하도록 설계.)
  *
- * 섹션: ① 헤더(환자정보+기간선택) ② 추세 요약 카드 ③ 이상 탐지 ④ 요인 분석(상관관계)
- *       ⑤ 기간 비교(7일 대비 요약)
+ * 섹션: ① 헤더(환자정보+기간선택) ② 추세 요약 카드(오늘·7일평균·30일평균 통합 표시)
+ *       ③ 이상 탐지 ④ 요인 분석(상관관계)
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
@@ -52,16 +52,7 @@ const ATTR_LABEL: Record<string, string> = {
   reported_total_uf_g:      "보고 총 제수량",
 };
 
-const ATTR_UNIT: Record<string, string> = {
-  body_weight_kg: "kg", systolic_bp: "mmHg", diastolic_bp: "mmHg",
-  mean_arterial_pressure: "mmHg", fasting_blood_sugar: "mg/dL",
-  urination_count: "회", exchange_count: "회", dwell_mean_minutes: "분",
-  concentration_max: "%", calculated_uf_sum_g: "g", recorded_uf_sum_g: "g",
-  infused_sum_g: "g", reported_total_uf_g: "g",
-};
-
 function attrLabel(attr: string) { return ATTR_LABEL[attr] ?? attr; }
-function attrUnit(attr: string)  { return ATTR_UNIT[attr] ?? ""; }
 
 /* ── 추세 배지 ──────────────────────────────────────────── */
 const TREND_CFG: Record<string, { icon: string; color: string; bg: string; label: string }> = {
@@ -85,6 +76,30 @@ function TrendBadge({ trend }: { trend: string }) {
     </span>
   );
 }
+
+/* ── 추세 카드용 "라벨 | 값 | 증감" 한 줄 — 오늘 값과 헷갈리지 않게 항상 라벨 표시 ── */
+function CompareRow({ label, mean, diff, pct, unit }: {
+  label: string; mean?: number; diff?: number; pct?: number | null; unit: string;
+}) {
+  if (mean == null) return null;
+  const deltaColor = diff == null || diff === 0 ? C.textLight : diff > 0 ? C.warning : C.primary;
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 11, gap: 6 }}>
+      <span style={{ color: C.textMuted, fontWeight: 600, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: C.text, fontWeight: 600 }}>{mean}{unit}</span>
+      {diff != null && (
+        <span style={{ color: deltaColor, flexShrink: 0 }}>
+          {diff > 0 ? '+' : ''}{diff}{unit}{pct != null ? ` (${pct > 0 ? '+' : ''}${pct}%)` : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
+const CORR_INTERPRETATION_KO: Record<string, string> = {
+  "very strong": "매우 강한", "strong": "강한", "moderate": "보통", "weak": "약한",
+};
+function corrLabel(interpretation: string) { return CORR_INTERPRETATION_KO[interpretation] ?? interpretation; }
 
 const ANOMALY_CFG: Record<string, { color: string; bg: string; label: string }> = {
   strong_anomaly: { color: C.danger,  bg: C.dangerLight,  label: "강한 이상" },
@@ -223,6 +238,7 @@ export default function PatientAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
   const [notFound, setNotFound] = useState(false);
+  const [showAllCorr, setShowAllCorr] = useState(false);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -260,6 +276,8 @@ export default function PatientAnalyticsPage() {
   const trendResults = data ? Object.entries(data.trend_analysis.results) : [];
   const anomalyResults = data ? Object.entries(data.anomaly_detection.results) : [];
   const corrPairs = data?.attribute_correlation.results ?? [];
+  const strongCorrPairs = corrPairs.filter((p) => p.interpretation !== 'weak');
+  const weakCorrPairs = corrPairs.filter((p) => p.interpretation === 'weak');
 
   return (
     <main style={{
@@ -339,6 +357,19 @@ export default function PatientAnalyticsPage() {
 
       {data && !loading && (
         <>
+          {/* ── 요청한 기간보다 실제 기록이 적을 때 안내 배너 ── */}
+          {data.window_days < window_ && (
+            <div style={{
+              background: '#EFF6FF', border: '0.5px solid #bfdbfe', borderRadius: 12,
+              padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span style={{ fontSize: 16 }}>ℹ️</span>
+              <span style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>
+                최근 {window_}일을 요청했지만 실제로는 {data.window_days}일치 기록만 있어서, {data.window_days}일 기준으로 계산했어요.
+              </span>
+            </div>
+          )}
+
           {/* ── 이상치 경고 배너 ── */}
           {data.has_anomaly && (
             <div style={{
@@ -368,24 +399,37 @@ export default function PatientAnalyticsPage() {
                   return (
                     <div key={attr} style={{
                       border: `0.5px solid ${C.border}`, borderRadius: 10, padding: '12px 14px',
-                      display: 'flex', flexDirection: 'column', gap: 6,
+                      display: 'flex', flexDirection: 'column', gap: 8,
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{attrLabel(attr)}</span>
                         <TrendBadge trend={entry.trend_summary} />
                       </div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>
-                        {entry.today_value} <span style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>{entry.unit}</span>
+
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.textLight, letterSpacing: '0.03em' }}>오늘</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>
+                          {entry.today_value} <span style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>{entry.unit}</span>
+                        </div>
                       </div>
-                      {entry.percentage_change_from_7d_mean != null && (
-                        <div style={{ fontSize: 11, color: C.textMuted }}>
-                          7일 평균 대비 {entry.percentage_change_from_7d_mean > 0 ? '+' : ''}{entry.percentage_change_from_7d_mean}%
+
+                      {(entry.previous_7d_mean != null || entry.previous_30d_mean != null) && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+                          <CompareRow
+                            label="7일 평균" unit={entry.unit}
+                            mean={entry.previous_7d_mean} diff={entry.difference_from_7d_mean}
+                            pct={entry.percentage_change_from_7d_mean}
+                          />
+                          <CompareRow
+                            label="30일 평균" unit={entry.unit}
+                            mean={entry.previous_30d_mean} diff={entry.difference_from_30d_mean}
+                          />
                         </div>
                       )}
+
                       {series && series.length >= 2 && (
                         <MiniTrendChart series={series} isAnomalyToday={isAnomalyToday} />
                       )}
-                      <div style={{ fontSize: 11, color: C.textLight, lineHeight: 1.5 }}>{entry.statement}</div>
                     </div>
                   );
                 })}
@@ -395,6 +439,14 @@ export default function PatientAnalyticsPage() {
 
           {/* ── ③ 이상 탐지 ── */}
           <SectionCard title="이상 탐지" subtitle="30일 데이터 기준 z-score / robust z-score">
+            <div style={{
+              background: C.bg, border: `0.5px solid ${C.border}`, borderRadius: 10,
+              padding: '10px 14px', marginBottom: 10, fontSize: 11.5, color: C.textMuted, lineHeight: 1.7,
+            }}>
+              <b style={{ color: C.text }}>z-score</b>: 최근 30일 평균·표준편차 기준으로 오늘 값이 표준편차 몇 배만큼 벗어났는지.{' '}
+              <b style={{ color: C.text }}>robust z-score</b>: 평균 대신 중앙값 기준이라 극단적인 과거 값의 영향을 덜 받는 버전.{' '}
+              둘 중 하나라도 |z| ≥ 2면 <b style={{ color: C.warning }}>경미한 이상</b>, |z| ≥ 3이면 <b style={{ color: C.danger }}>강한 이상</b>으로 표시함.
+            </div>
             {anomalyResults.length === 0 ? (
               <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>표시할 이상탐지 데이터가 없습니다.</div>
             ) : (
@@ -436,55 +488,79 @@ export default function PatientAnalyticsPage() {
           </SectionCard>
 
           {/* ── ④ 요인 분석(상관관계) ── */}
-          <SectionCard title="요인 분석" subtitle="Spearman 상관계수 |r| ≥ 0.5 쌍만 표시">
+          <SectionCard title="요인 분석" subtitle="Spearman 상관계수 — |r| ≥ 0.5는 기본 표시, 나머지는 펼쳐서 확인">
             {corrPairs.length === 0 ? (
               <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>
-                {data.attribute_correlation.note ?? '유의미한 상관관계가 없습니다.'}
+                {data.attribute_correlation.note ?? '계산할 수 있는 상관관계가 없습니다.'}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {corrPairs.map((p, i) => {
-                  const pct = Math.round(Math.abs(p.correlation) * 100);
-                  const barColor = p.direction === 'positive' ? C.primary : C.danger;
-                  return (
-                    <div key={i}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                        <span style={{ color: C.text, fontWeight: 600 }}>
-                          {attrLabel(p.attr1)} ↔ {attrLabel(p.attr2)}
-                        </span>
-                        <span style={{ color: C.textMuted }}>
-                          {p.correlation} ({p.interpretation}, {p.direction === 'positive' ? '양의 상관' : '음의 상관'})
-                        </span>
+              <>
+                {strongCorrPairs.length === 0 && (
+                  <div style={{ fontSize: 12, color: C.textMuted, padding: '4px 0 10px' }}>
+                    유의미한(|r| ≥ 0.5) 상관관계는 없어요. 약한 상관관계 {weakCorrPairs.length}개는 아래에서 확인할 수 있어요.
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {strongCorrPairs.map((p, i) => {
+                    const pct = Math.round(Math.abs(p.correlation) * 100);
+                    const barColor = p.direction === 'positive' ? C.primary : C.danger;
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                          <span style={{ color: C.text, fontWeight: 600 }}>
+                            {attrLabel(p.attr1)} ↔ {attrLabel(p.attr2)}
+                          </span>
+                          <span style={{ color: C.textMuted }}>
+                            {p.correlation} ({corrLabel(p.interpretation)}, {p.direction === 'positive' ? '양의 상관' : '음의 상관'})
+                          </span>
+                        </div>
+                        <div style={{ background: C.bg, borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 6 }} />
+                        </div>
                       </div>
-                      <div style={{ background: C.bg, borderRadius: 6, height: 8, overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 6 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </SectionCard>
+                    );
+                  })}
+                </div>
 
-          {/* ── ⑤ 기간 비교 (7일 대비) ── */}
-          <SectionCard title="기간 비교" subtitle="최근 7일 평균 대비 오늘">
-            {trendResults.filter(([, e]) => e.previous_7d_mean != null).length === 0 ? (
-              <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>비교할 7일 데이터가 없습니다.</div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-                {trendResults
-                  .filter(([, e]) => e.previous_7d_mean != null)
-                  .map(([attr, e]) => (
-                    <div key={attr} style={{ padding: '10px 14px', borderRadius: 10, border: `0.5px solid ${C.border}` }}>
-                      <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 4 }}>{attrLabel(attr)}</div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{e.today_value}{attrUnit(attr)}</span>
-                        <span style={{ fontSize: 11, color: C.textLight }}>← 7일평균 {e.previous_7d_mean}{attrUnit(attr)}</span>
+                {weakCorrPairs.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <button
+                      onClick={() => setShowAllCorr((v) => !v)}
+                      style={{
+                        background: 'none', border: `0.5px solid ${C.border}`, borderRadius: 20,
+                        padding: '5px 14px', fontSize: 12, fontWeight: 600, color: C.textMuted,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      {showAllCorr ? '접기 ▲' : `약한 상관관계 ${weakCorrPairs.length}개 더보기 ▼`}
+                    </button>
+
+                    {showAllCorr && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, opacity: 0.7 }}>
+                        {weakCorrPairs.map((p, i) => {
+                          const pct = Math.round(Math.abs(p.correlation) * 100);
+                          const barColor = p.direction === 'positive' ? C.primary : C.danger;
+                          return (
+                            <div key={i}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                                <span style={{ color: C.text, fontWeight: 600 }}>
+                                  {attrLabel(p.attr1)} ↔ {attrLabel(p.attr2)}
+                                </span>
+                                <span style={{ color: C.textMuted }}>
+                                  {p.correlation} ({corrLabel(p.interpretation)}, {p.direction === 'positive' ? '양의 상관' : '음의 상관'})
+                                </span>
+                              </div>
+                              <div style={{ background: C.bg, borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 6 }} />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      {e.trend_7d && <div style={{ marginTop: 4 }}><TrendBadge trend={e.trend_7d} /></div>}
-                    </div>
-                  ))}
-              </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </SectionCard>
         </>
