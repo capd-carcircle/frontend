@@ -267,8 +267,20 @@ export default function PatientAnalyticsPage() {
           <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.04em' }}>
             {displayName || "환자"} 분석 리포트
           </h1>
-          <p style={{ fontSize: 13, color: C.textMuted, margin: '3px 0 0' }}>
-            {data ? `${data.record_date} 기준 · 과거 ${data.window_days}일 데이터 반영` : "추세 · 이상 탐지 · 상관관계 분석"}
+          <p style={{ fontSize: 13, color: C.textMuted, margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span>{data ? `${data.record_date} 기준 · 과거 ${data.window_days}일 데이터 반영` : "추세 · 이상 탐지 · 상관관계 분석"}</span>
+            {data && (
+              <span
+                title={data.source === 'cache' ? '이미 계산돼 있던 값을 재사용했습니다' : '지금 새로 계산했습니다'}
+                style={{
+                  fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
+                  background: data.source === 'cache' ? '#EEF2FF' : '#F0FDF4',
+                  color: data.source === 'cache' ? '#4338CA' : '#15803D',
+                }}
+              >
+                {data.source === 'cache' ? '⚡ 캐시' : '🔄 즉석 계산'}
+              </span>
+            )}
           </p>
         </div>
         <button
