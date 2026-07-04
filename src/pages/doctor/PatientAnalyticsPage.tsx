@@ -463,11 +463,23 @@ export default function PatientAnalyticsPage() {
           <SectionCard title="이상 탐지" subtitle="30일 데이터 기준 z-score / robust z-score">
             <div style={{
               background: C.bg, border: `0.5px solid ${C.border}`, borderRadius: 10,
-              padding: '10px 14px', marginBottom: 10, fontSize: 11.5, color: C.textMuted, lineHeight: 1.7,
+              padding: '12px 16px', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 6,
             }}>
-              <b style={{ color: C.text }}>z-score</b>: 최근 30일 평균·표준편차 기준으로 오늘 값이 표준편차 몇 배만큼 벗어났는지.{' '}
-              <b style={{ color: C.text }}>robust z-score</b>: 평균 대신 중앙값 기준이라 극단적인 과거 값의 영향을 덜 받는 버전.{' '}
-              둘 중 하나라도 |z| ≥ 2면 <b style={{ color: C.warning }}>경미한 이상</b>, |z| ≥ 3이면 <b style={{ color: C.danger }}>강한 이상</b>으로 표시함.
+              <div style={{ fontSize: 11.5, color: C.textMuted, lineHeight: 1.6 }}>
+                <b style={{ color: C.text }}>z-score</b> · 최근 30일 평균·표준편차 기준으로 오늘 값이 표준편차 몇 배만큼 벗어났는지
+              </div>
+              <div style={{ fontSize: 11.5, color: C.textMuted, lineHeight: 1.6 }}>
+                <b style={{ color: C.text }}>robust z-score</b> · 평균 대신 중앙값 기준이라 극단적인 과거 값의 영향을 덜 받는 버전
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, fontSize: 11,
+                marginTop: 2, paddingTop: 6, borderTop: `1px solid ${C.border}`,
+              }}>
+                <span style={{ color: C.textLight, fontWeight: 600 }}>판정 기준</span>
+                <span style={{ color: C.warning, fontWeight: 700 }}>|z| ≥ 2 → 경미한 이상</span>
+                <span style={{ color: C.textLight }}>·</span>
+                <span style={{ color: C.danger, fontWeight: 700 }}>|z| ≥ 3 → 강한 이상</span>
+              </div>
             </div>
             {anomalyResults.length === 0 ? (
               <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>표시할 이상탐지 데이터가 없습니다.</div>
@@ -512,8 +524,13 @@ export default function PatientAnalyticsPage() {
                         </div>
 
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: C.textLight, letterSpacing: '0.03em' }}>오늘 값</div>
-                          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{entry.today_value}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.textLight, letterSpacing: '0.03em' }}>오늘</div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>
+                            {entry.today_value}{' '}
+                            <span style={{ fontSize: 11, fontWeight: 500, color: C.textMuted }}>
+                              {data.trend_analysis.results[attr]?.unit ?? ''}
+                            </span>
+                          </div>
                         </div>
 
                         {entry.sufficient_data && (entry.z_score_30d != null || entry.robust_z_score != null) && (
