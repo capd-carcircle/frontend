@@ -42,6 +42,7 @@ interface TodayRecord {
   risk_level:          'urgent' | 'caution' | 'normal' | null
   ai_summary:          string | null
   unreviewed_ai_count: number
+  has_anomaly:         boolean | null
 }
 
 /* ═══════════════ ai_summary 파싱 헬퍼 ═══════════════
@@ -145,6 +146,13 @@ function RiskBadge({ level }: { level: 'urgent' | 'caution' | 'normal' | null })
   return (
     <span style={{ background: r.bg, color: r.color, border: `0.5px solid ${r.border}`, borderRadius: 20, padding: '4px 10px', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap' }}>
       {r.label}
+    </span>
+  )
+}
+function AnomalyBadge() {
+  return (
+    <span title="분석 리포트에서 이상치 감지됨" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: C.dangerLight, color: C.danger, border: '1px solid #fca5a5', borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      📊 이상치
     </span>
   )
 }
@@ -380,6 +388,7 @@ function PatientCard({
             <span style={{ background: '#f3f4f6', color: C.textMuted, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>미제출</span>
           )}
           <RiskBadge level={record?.risk_level ?? null} />
+          {record?.has_anomaly && <AnomalyBadge />}
         </div>
       </div>
 
@@ -771,7 +780,12 @@ export default function DashboardPage() {
                     <span style={{ background: '#f3f4f6', color: C.textMuted, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>미제출</span>
                   )}
                 </td>
-                <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}><RiskBadge level={rec?.risk_level ?? null} /></td>
+                <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <RiskBadge level={rec?.risk_level ?? null} />
+                    {rec?.has_anomaly && <AnomalyBadge />}
+                  </div>
+                </td>
               </tr>
             )
           })}

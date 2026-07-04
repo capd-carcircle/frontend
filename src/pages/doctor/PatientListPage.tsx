@@ -34,6 +34,8 @@ interface PatientOverview {
   is_current: boolean
   assignment_started_at: string | null
   assignment_ended_at: string | null
+  has_anomaly: boolean | null
+  anomaly_record_date: string | null
 }
 
 /* ── 환자 이름 포맷 (홍길동(36, 남)) ── */
@@ -61,6 +63,17 @@ function Highlight({ text, query }: { text: string; query: string }) {
       </mark>
       {text.slice(idx + query.length)}
     </>
+  )
+}
+
+function AnomalyBadge({ date }: { date: string | null }) {
+  const title = date
+    ? `${new Date(date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 분석 리포트에서 이상치 감지됨`
+    : '최근 분석 리포트에서 이상치 감지됨'
+  return (
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: C.dangerLight, color: C.danger, border: '1px solid #fca5a5', borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      📊 이상치
+    </span>
   )
 }
 
@@ -101,7 +114,8 @@ function PatientCard({ p, query, onClick, isCurrent }: {
         {!isCurrent && (
           <span style={{ fontSize: 11, color: C.textMuted, background: '#f3f4f6', borderRadius: 5, padding: '2px 6px' }}>과거 담당</span>
         )}
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {p.has_anomaly && <AnomalyBadge date={p.anomaly_record_date} />}
           {p.latest_risk_level
             ? <span style={{ background: RISK_CFG[p.latest_risk_level].bg, color: RISK_CFG[p.latest_risk_level].color, border: `1px solid ${RISK_CFG[p.latest_risk_level].border}`, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>{RISK_CFG[p.latest_risk_level].label}</span>
             : <span style={{ fontSize: 12, color: C.textLight }}>위험도 없음</span>}
@@ -318,9 +332,12 @@ export default function PatientListPage() {
                       <td style={{ padding: '12px 14px', color: C.textMuted, fontSize: 12 }}>#{String(p.id).padStart(4, '0')}</td>
                       <td style={{ padding: '12px 14px', color: C.textMuted }}><Highlight text={formatPhone(p.phone_number)} query={query} /></td>
                       <td style={{ padding: '12px 14px' }}>
-                        {p.latest_risk_level
-                          ? <span style={{ background: RISK_CFG[p.latest_risk_level].bg, color: RISK_CFG[p.latest_risk_level].color, border: `1px solid ${RISK_CFG[p.latest_risk_level].border}`, borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{RISK_CFG[p.latest_risk_level].label}</span>
-                          : <span style={{ fontSize: 12, color: C.textLight }}>없음</span>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {p.latest_risk_level
+                            ? <span style={{ background: RISK_CFG[p.latest_risk_level].bg, color: RISK_CFG[p.latest_risk_level].color, border: `1px solid ${RISK_CFG[p.latest_risk_level].border}`, borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{RISK_CFG[p.latest_risk_level].label}</span>
+                            : <span style={{ fontSize: 12, color: C.textLight }}>없음</span>}
+                          {p.has_anomaly && <AnomalyBadge date={p.anomaly_record_date} />}
+                        </div>
                       </td>
                       <td style={{ padding: '12px 14px', fontWeight: 600 }}>{p.total_records > 0 ? `${p.total_records}건` : <span style={{ color: C.textLight }}>없음</span>}</td>
                       <td style={{ padding: '12px 14px', color: C.textMuted, fontSize: 12 }}>
