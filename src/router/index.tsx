@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import useAuthStore from "../store/authStore";
 import LoginPage from "../pages/auth/LoginPage";
@@ -8,6 +8,7 @@ import { DoctorLayout } from "../pages/doctor/Layout";
 import DashboardPage from "../pages/doctor/DashboardPage";
 import RecordDetailPage from "../pages/doctor/RecordDetailPage";
 import PatientRecordsPage from "../pages/doctor/PatientRecordsPage";
+import PatientAnalyticsPage from "../pages/doctor/PatientAnalyticsPage";
 import PatientListPage from "../pages/doctor/PatientListPage";
 import CommonQPage from "../pages/doctor/CommonQPage";
 import AIReviewPage from "../pages/doctor/AIReviewPage";
@@ -84,6 +85,10 @@ const router = createBrowserRouter([
     element: <PrivateRoute role="doctor"><DoctorLayout><PatientRecordsPage /></DoctorLayout></PrivateRoute>,
   },
   {
+    path: "/doctor/patients/:patientId/analytics",
+    element: <PrivateRoute role="doctor"><DoctorLayout><PatientAnalyticsPage /></DoctorLayout></PrivateRoute>,
+  },
+  {
     path: "/doctor/approve",
     element: <PrivateRoute role="doctor"><DoctorLayout><PatientApprovalPage /></DoctorLayout></PrivateRoute>,
   },
@@ -128,3 +133,4 @@ const router = createBrowserRouter([
 
 
 export default router;
+

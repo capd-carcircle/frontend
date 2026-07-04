@@ -201,20 +201,36 @@ export default function PatientRecordsPage() {
             전체 기록 {totalCount}건
           </p>
         </div>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: "6px 16px", borderRadius: 20,
-            border: `0.5px solid ${C.border}`, background: C.white,
-            color: C.textMuted, fontSize: 13, fontWeight: 500,
-            cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = C.bg; e.currentTarget.style.color = C.text }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.textMuted }}
-        >
-          ← 뒤로
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={() => navigate(`/doctor/patients/${patientId}/analytics`, {
+              state: { patientName, patientBirthDate: birthDate, patientGender: genderRaw },
+            })}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: "6px 16px", borderRadius: 20,
+              border: `0.5px solid ${C.primary}`, background: C.primary,
+              color: C.white, fontSize: 13, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            📊 분석 리포트
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: "6px 16px", borderRadius: 20,
+              border: `0.5px solid ${C.border}`, background: C.white,
+              color: C.textMuted, fontSize: 13, fontWeight: 500,
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = C.bg; e.currentTarget.style.color = C.text }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.textMuted }}
+          >
+            ← 뒤로
+          </button>
+        </div>
       </div>
 
       {/* ── 환자 정보 카드 ── */}
