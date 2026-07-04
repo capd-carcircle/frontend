@@ -533,8 +533,24 @@ export default function PatientAnalyticsPage() {
                           </div>
                         </div>
 
-                        {entry.sufficient_data && (entry.z_score_30d != null || entry.robust_z_score != null) && (
+                        {entry.sufficient_data && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+                            {entry.baseline_mean != null && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                <span style={{ color: C.textMuted, fontWeight: 600 }}>30일 평균</span>
+                                <span style={{ color: C.text, fontWeight: 700 }}>
+                                  {entry.baseline_mean} {data.trend_analysis.results[attr]?.unit ?? ''}
+                                </span>
+                              </div>
+                            )}
+                            {entry.baseline_std != null && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                <span style={{ color: C.textMuted, fontWeight: 600 }}>표준편차</span>
+                                <span style={{ color: C.text, fontWeight: 700 }}>
+                                  {entry.baseline_std} {data.trend_analysis.results[attr]?.unit ?? ''}
+                                </span>
+                              </div>
+                            )}
                             {entry.z_score_30d != null && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                                 <span style={{ color: C.textMuted, fontWeight: 600 }}>z-score</span>
@@ -550,7 +566,9 @@ export default function PatientAnalyticsPage() {
                           </div>
                         )}
 
-                        <span style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>{entry.statement}</span>
+                        {!entry.sufficient_data && (
+                          <span style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>{entry.statement}</span>
+                        )}
                       </div>
                     );
                   })}
