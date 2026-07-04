@@ -619,6 +619,12 @@ window.addEventListener('load', function() {
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 <button
+                  onClick={() => { onClose(); navigate(`/doctor/patients/${patientId}/analytics`, { state: { patientName: profile.name, patientBirthDate: profile.birth_date, patientGender: profile.gender } }) }}
+                  style={{ background: '#fff', color: C.primary, border: `1.5px solid ${C.primary}`, borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                >
+                  📊 분석 리포트
+                </button>
+                <button
                   onClick={() => { onClose(); navigate(`/doctor/patients/${patientId}/records`, { state: { patientName: profile.name, patientBirthDate: profile.birth_date, patientGender: profile.gender, patientPhone: profile.phone_number } }) }}
                   style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                 >
