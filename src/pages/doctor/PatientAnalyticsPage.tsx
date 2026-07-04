@@ -75,6 +75,29 @@ function TrendBadge({ trend }: { trend: string }) {
   );
 }
 
+/* ── 이상 탐지 배지 — TrendBadge와 동일한 pill 스타일(아이콘+라벨 통합, 색 배경) ── */
+function AnomalyBadge({ level }: { level: string }) {
+  const cfg = ANOMALY_CFG[level] ?? ANOMALY_CFG.normal;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
+      color: cfg.color, background: cfg.bg,
+    }}>
+      {cfg.icon} {cfg.label}
+    </span>
+  );
+}
+
+/* z-score/robust z 판정 기준: |z| >= 2 mild / >= 3 strong — 두 값(rolling·robust) 각각 독립 적용.
+   카드 배지는 둘 중 더 심한 쪽(strong > mild > normal)을 대표로 보여줌. */
+const ANOMALY_SEVERITY: Record<string, number> = { normal: 0, mild_anomaly: 1, strong_anomaly: 2 };
+function worseAnomalyLevel(a?: string, b?: string): string {
+  const la = a ?? 'normal';
+  const lb = b ?? 'normal';
+  return (ANOMALY_SEVERITY[la] ?? 0) >= (ANOMALY_SEVERITY[lb] ?? 0) ? la : lb;
+}
+
 /* ── 추세 카드용 "라벨 | 값 | 증감" 한 줄 — 오늘 값과 헷갈리지 않게 항상 라벨 표시 ── */
 function CompareRow({ label, mean, diff, pct, unit, fontSize = 11 }: {
   label: string; mean?: number; diff?: number; pct?: number | null; unit: string; fontSize?: number;
@@ -493,9 +516,8 @@ export default function PatientAnalyticsPage() {
                   .slice()
                   .sort((a, b) => Number(!!b[1].is_anomaly) - Number(!!a[1].is_anomaly))
                   .map(([attr, entry]) => {
-                    const level = entry.z_interpretation && entry.z_interpretation !== 'normal'
-                      ? entry.z_interpretation
-                      : (entry.robust_interpretation ?? 'normal');
+                    // 배지는 z-score·robust z 중 더 심한 쪽(strong > mild > normal)을 대표로 표시
+                    const level = worseAnomalyLevel(entry.z_interpretation, entry.robust_interpretation);
                     const cfg = ANOMALY_CFG[level] ?? ANOMALY_CFG.normal;
                     return (
                       <div key={attr} style={{
@@ -505,19 +527,11 @@ export default function PatientAnalyticsPage() {
                         border: `0.5px solid ${entry.is_anomaly ? cfg.color + '33' : C.border}`,
                       }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                            <span style={{ fontSize: 14, flexShrink: 0 }}>{cfg.icon}</span>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {attrLabel(attr)}
-                            </span>
-                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {attrLabel(attr)}
+                          </span>
                           {entry.sufficient_data ? (
-                            <span style={{
-                              flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
-                              color: cfg.color, background: C.white,
-                            }}>
-                              {cfg.label}
-                            </span>
+                            <AnomalyBadge level={level} />
                           ) : (
                             <span style={{ flexShrink: 0, fontSize: 10.5, color: C.textLight }}>데이터 부족</span>
                           )}
@@ -554,13 +568,17 @@ export default function PatientAnalyticsPage() {
                             {entry.z_score_30d != null && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                                 <span style={{ color: C.textMuted, fontWeight: 600 }}>z-score</span>
-                                <span style={{ color: C.text, fontWeight: 700 }}>{entry.z_score_30d}</span>
+                                <span style={{ color: (ANOMALY_CFG[entry.z_interpretation ?? 'normal'] ?? ANOMALY_CFG.normal).color, fontWeight: 700 }}>
+                                  {entry.z_score_30d}
+                                </span>
                               </div>
                             )}
                             {entry.robust_z_score != null && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                                 <span style={{ color: C.textMuted, fontWeight: 600 }}>robust z</span>
-                                <span style={{ color: C.text, fontWeight: 700 }}>{entry.robust_z_score}</span>
+                                <span style={{ color: (ANOMALY_CFG[entry.robust_interpretation ?? 'normal'] ?? ANOMALY_CFG.normal).color, fontWeight: 700 }}>
+                                  {entry.robust_z_score}
+                                </span>
                               </div>
                             )}
                           </div>
