@@ -24,7 +24,10 @@ interface SurveyData {
   total_count: number
 }
 const getSurveyResponses = async (recordId: number): Promise<SurveyData> => {
-  const res = await client.get(`/api/v1/surveys/my-responses/${recordId}`)
+  // history=true — 지금 활성 질문 목록이 아니라 이 기록에 실제 응답이 남아있는 질문만
+  // 조회(당시 질문 기준). 안 붙이면 설문 작성 중(CommonSurveyPage) 흐름과 같아져서
+  // 나중에 추가된 질문이 이 과거 기록에도 "미응답"으로 잘못 표시됨.
+  const res = await client.get(`/api/v1/surveys/my-responses/${recordId}?history=true`)
   return res.data
 }
 
