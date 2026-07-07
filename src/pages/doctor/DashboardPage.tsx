@@ -43,6 +43,7 @@ interface TodayRecord {
   ai_summary:          string | null
   unreviewed_ai_count: number
   has_anomaly:         boolean | null
+  anomaly_record_date: string | null
 }
 
 /* ═══════════════ ai_summary 파싱 헬퍼 ═══════════════
@@ -149,10 +150,30 @@ function RiskBadge({ level }: { level: 'urgent' | 'caution' | 'normal' | null })
     </span>
   )
 }
-function AnomalyBadge() {
+function todayStr() {
+  const d = new Date()
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+}
+
+// PatientListPage.tsx의 AnomalyBadge와 동일한 신규/지속 구분 로직(2026-07-08 추가) —
+// anomaly_record_date가 오늘이면 방금 새로 생긴 것, 과거 날짜면 그때부터 계속 이어지는 중.
+function AnomalyBadge({ date }: { date: string | null }) {
+  const isNew = date !== null && date === todayStr()
+  const shortDate = date
+    ? new Date(date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+    : null
+  const label = isNew ? '🆕 이상치' : shortDate ? `이상치 (${shortDate}~)` : '📊 이상치'
+  const title = isNew
+    ? '오늘 분석 리포트에서 새로 이상치가 감지됨'
+    : shortDate
+      ? `${shortDate}부터 이상치 상태가 계속되고 있음(그 이후 새 기록·재계산 없음)`
+      : '분석 리포트에서 이상치 감지됨'
+  const color  = isNew ? C.danger      : C.warning
+  const bg     = isNew ? C.dangerLight : C.warningLight
+  const border = isNew ? '#fca5a5'     : '#fcd34d'
   return (
-    <span title="분석 리포트에서 이상치 감지됨" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: C.dangerLight, color: C.danger, border: '1px solid #fca5a5', borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
-      📊 이상치
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: bg, color, border: `1px solid ${border}`, borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      {label}
     </span>
   )
 }
@@ -388,7 +409,7 @@ function PatientCard({
             <span style={{ background: '#f3f4f6', color: C.textMuted, borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>미제출</span>
           )}
           <RiskBadge level={record?.risk_level ?? null} />
-          {record?.has_anomaly && <AnomalyBadge />}
+          {record?.has_anomaly && <AnomalyBadge date={record?.anomaly_record_date ?? null} />}
         </div>
       </div>
 
@@ -783,7 +804,7 @@ export default function DashboardPage() {
                 <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <RiskBadge level={rec?.risk_level ?? null} />
-                    {rec?.has_anomaly && <AnomalyBadge />}
+                    {rec?.has_anomaly && <AnomalyBadge date={rec?.anomaly_record_date ?? null} />}
                   </div>
                 </td>
               </tr>

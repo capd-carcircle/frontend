@@ -66,13 +66,31 @@ function Highlight({ text, query }: { text: string; query: string }) {
   )
 }
 
+function todayStr() {
+  const d = new Date()
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+}
+
+// 이상치 판정 기준 날짜가 오늘이면 "방금 새로 생긴 것", 과거 날짜면 "그때부터 계속 이어지는 것"으로
+// 구분해서 표시(2026-07-08 추가) — "가장 최근 캐시"를 그대로 쓰다 보니 새 기록을 안 낸 환자는
+// 예전 이상치 상태가 계속 보이는데, 그게 방금 생긴 건지 며칠째인지 구분이 안 되던 문제 개선.
 function AnomalyBadge({ date }: { date: string | null }) {
-  const title = date
-    ? `${new Date(date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 분석 리포트에서 이상치 감지됨`
-    : '최근 분석 리포트에서 이상치 감지됨'
+  const isNew = date !== null && date === todayStr()
+  const shortDate = date
+    ? new Date(date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+    : null
+  const label = isNew ? '🆕 이상치' : shortDate ? `이상치 (${shortDate}~)` : '📊 이상치'
+  const title = isNew
+    ? '오늘 분석 리포트에서 새로 이상치가 감지됨'
+    : shortDate
+      ? `${shortDate}부터 이상치 상태가 계속되고 있음(그 이후 새 기록·재계산 없음)`
+      : '최근 분석 리포트에서 이상치 감지됨'
+  const color  = isNew ? C.danger      : C.warning
+  const bg     = isNew ? C.dangerLight : C.warningLight
+  const border = isNew ? '#fca5a5'     : '#fcd34d'
   return (
-    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: C.dangerLight, color: C.danger, border: '1px solid #fca5a5', borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
-      📊 이상치
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: bg, color, border: `1px solid ${border}`, borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      {label}
     </span>
   )
 }
